@@ -1,0 +1,113 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block content %}
+<div class="p-6 max-w-5xl mx-auto">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">{% trans "Excel Import Wizard" %}</h1>
+    <p class="text-gray-600 dark:text-gray-400 mb-8">Upload monthly consumption sheets to generate charges.</p>
+
+    {% if step == "upload" %}
+    <form method="post" enctype="multipart/form-data"
+        class="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+        {% csrf_token %}
+        <input type="hidden" name="step" value="upload">
+
+        <div class="mb-6">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Import Source
+                Settings</label>
+            <select name="source_id"
+                class="block w-full rounded-md border-gray-300 dark:bg-gray-700 dark:border-gray-600 shadow-sm focus:border-primary-500 focus:ring-primary-500">
+                {% for source in sources %}
+                <option value="{{ source.id }}">{{ source }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mb-8">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Upload Excel File</label>
+            <div
+                class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-md hover:border-primary-500 transition-colors">
+                <div class="space-y-1 text-center">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                        <path
+                            d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <div class="flex text-sm text-gray-600 dark:text-gray-400">
+                        <label for="file-upload"
+                            class="relative cursor-pointer bg-white dark:bg-gray-800 rounded-md font-medium text-primary-600 hover:text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500">
+                            <span>Upload a file</span>
+                            <input id="file-upload" name="file" type="file" class="sr-only" accept=".xlsx,.xls">
+                        </label>
+                        <p class="pl-1">or drag and drop</p>
+                    </div>
+                    <p class="text-xs text-gray-500">Excel files (.xlsx) up to 10MB</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-end">
+            <button type="submit"
+                class="bg-primary-600 text-white px-6 py-2 rounded shadow hover:bg-primary-700 font-medium">
+                Next: Preview
+            </button>
+        </div>
+    </form>
+    {% elif step == "preview" %}
+
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-6 border border-gray-200 dark:border-gray-700">
+        <h2 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Preview Data: {{ upload.original_name }}
+        </h2>
+        <p class="text-sm text-gray-500 mb-4">Showing first 10 rows of {{ total_rows }} mapped rows.</p>
+
+        <div class="overflow-x-auto mb-6 border rounded-md">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900">
+                    <tr>
+                        {% for col in columns %}
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{
+                            col }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for row in preview_data %}
+                    <tr>
+                        {% for key, val in row.items %}
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{{ val }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <form method="post" class="flex gap-4 items-end bg-gray-50 dark:bg-gray-900 p-4 rounded-md">
+            {% csrf_token %}
+            <input type="hidden" name="step" value="commit">
+            <input type="hidden" name="upload_id" value="{{ upload.id }}">
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Billing Year</label>
+                <input type="number" name="year" value="2026"
+                    class="mt-1 block w-24 rounded-md border-gray-300 shadow-sm dark:bg-gray-700">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Billing Month</label>
+                <input type="number" name="month" value="1"
+                    class="mt-1 block w-24 rounded-md border-gray-300 shadow-sm dark:bg-gray-700">
+            </div>
+
+            <div class="flex-grow flex justify-end gap-2">
+                <a href="{{ request.path }}"
+                    class="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400">Cancel</a>
+                <button type="submit"
+                    class="bg-green-600 text-white px-6 py-2 rounded shadow hover:bg-green-700 font-medium">
+                    Process & Generate Charges
+                </button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

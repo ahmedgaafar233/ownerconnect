@@ -1,0 +1,16 @@
+{% load i18n %}
+{% if quick_links %}
+<div class="quick-access">
+    <h3 class="quick-access__heading">{% trans "Quick Access" %}</h3>
+    <div class="quick-access__grid">
+        {% for ql in quick_links %}
+        <a href="{{ ql.link }}" class="quick-link drawer-link"
+            style="background:{{ ql.bg }};border-color:{{ ql.border }};">
+            <span class="material-symbols-outlined" style="color:{{ ql.icon_color }};font-size:1.2rem;">{{
+                ql.icon }}</span>
+            <div>{{ ql.title }}</div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}

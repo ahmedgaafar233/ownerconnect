@@ -1,0 +1,21 @@
+/* ── Dashboard Styles ── */
+@import url("components/resort_cover.css");
+@import url("components/kpi_card.css");
+.kpi-card:hover .kpi-card__icon {
+    transform: scale(1.1);
+}
+
+.dashboard-list-card {
+    background: white;
+    border-radius: 1rem;
+    padding: 1.25rem;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    border: 1px solid #f3f4f6;
+    height: 100%;
+    margin-bottom: 1.5rem;
+}
+
+.dashboard-list-card__header {
+    margin-bottom: 1rem;
+}
+@import url("components/quick_access.css");

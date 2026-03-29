@@ -1,0 +1,117 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block content %}
+<div class="p-6 max-w-7xl mx-auto">
+    <!-- Header / Search -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">{% trans "Unit Statement" %}</h1>
+        <p class="text-gray-600 dark:text-gray-400 mb-6">Enter the unit details to view financial history and statement.</p>
+        
+        <form method="get" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex gap-4 items-end">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Building No</label>
+                <input type="number" name="building_no" value="{{ building_no|default:'' }}" required 
+                       class="border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-32">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit No</label>
+                <input type="number" name="unit_no" value="{{ unit_no|default:'' }}" required
+                       class="border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-32">
+            </div>
+            <button type="submit" class="bg-primary-600 text-white px-6 py-2 rounded-md hover:bg-primary-700 transition-colors shadow-sm font-medium">
+                {% trans "Generate Statement" %}
+            </button>
+        </form>
+    </div>
+
+    {% if error %}
+    <div class="bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 p-4 rounded-md border border-red-200 dark:border-red-800 mb-6">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    {% if show_results %}
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Billed</h3>
+            <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-gray-100">{{ total_charged|floatformat:2 }} EGP</p>
+        </div>
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Paid</h3>
+            <p class="mt-2 text-3xl font-bold text-green-600 dark:text-green-400">{{ total_paid|floatformat:2 }} EGP</p>
+        </div>
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Current Balance</h3>
+            <p class="mt-2 text-3xl font-bold {% if balance > 0 %}text-red-600 dark:text-red-400{% else %}text-gray-900 dark:text-gray-100{% endif %}">
+                {{ balance|floatformat:2 }} EGP
+            </p>
+            {% if balance == 0 %}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-2">
+                Paid in Full
+            </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Charges Table -->
+    <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+            <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">Charge History for {{ unit }}</h2>
+            <button onclick="window.print()" class="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 print:hidden flex items-center gap-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                Print Statement
+            </button>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900/50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Details</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
+                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
+                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Paid</th>
+                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Balance</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for charge in charges %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                            <span class="font-medium">
+                                {% if charge.month %}{{ charge.year }}-{{ charge.month|stringformat:"02d" }}{% else %}{{ charge.year }}{% endif %}
+                            </span>
+                            <span class="block text-xs text-gray-500">{{ charge.get_type_display }}</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {{ charge.get_type_display }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900 dark:text-gray-100">
+                            {{ charge.amount }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-green-600 dark:text-green-400">
+                            {{ charge.total_paid }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-bold {% if charge.balance > 0 %}text-red-600 dark:text-red-400{% else %}text-gray-400{% endif %}">
+                            {{ charge.balance }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {% if charge.is_fully_paid %}bg-green-100 text-green-800{% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                                {% if charge.is_fully_paid %}Paid{% else %}Due{% endif %}
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">No charges found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

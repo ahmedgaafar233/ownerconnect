@@ -1,0 +1,14 @@
+{% if cards %}
+<div class="kpi-grid">
+    {% for card in cards %}
+    <a href="{{ card.link|default:'#' }}" class="kpi-card kpi-card--{{ card.color }}">
+        <div class="kpi-card__header">
+            <span class="kpi-card__label">{{ card.title }}</span>
+            <span class="material-symbols-outlined kpi-card__icon">{{ card.icon }}</span>
+        </div>
+        <div class="kpi-card__metric">{{ card.metric }}</div>
+        <div class="kpi-card__footer">{{ card.footer }}</div>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}

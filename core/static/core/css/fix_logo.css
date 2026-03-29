@@ -1,0 +1,43 @@
+/* NUCLEAR FIX V3: CARD LAYOUT & HIDE TEXT */
+
+/* 1. Header Link Container */
+aside a[href="/admin/"],
+#sidebar a[href="/admin/"] {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 1.5rem 1rem !important;
+    /* More padding to separate from search */
+    background-color: transparent !important;
+    font-size: 0 !important;
+    /* HIDE ALL TEXT (including raw text nodes) */
+    line-height: 0 !important;
+}
+
+/* 2. Logo Image */
+img[src*="resort_identity"] {
+    display: block !important;
+    width: 100% !important;
+    max-width: 240px !important;
+    /* Full width of sidebar */
+    height: auto !important;
+    max-height: 120px !important;
+    object-fit: contain !important;
+    border-radius: 12px !important;
+    /* Modern rounded corners */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+    /* Pop effect */
+    margin-bottom: 0 !important;
+}
+
+/* 3. Hide any specific text spans just in case */
+aside a[href="/admin/"] *,
+#sidebar a[href="/admin/"] * {
+    font-size: 0 !important;
+}
+
+/* Restore image visibility if affected (images generally ignore font-size but good safety) */
+#sidebar a[href="/admin/"] img {
+    visibility: visible !important;
+}

@@ -1,0 +1,35 @@
+{% extends 'admin/base.html' %}
+{% load i18n static %}
+
+{% block extrahead %}
+{{ block.super }}
+<link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+<link rel="stylesheet" href="{% static 'core/css/dashboard.css' %}">
+{% endblock %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin')
+}}{% endblock %}
+
+{% block branding %}
+{% include "unfold/helpers/site_branding.html" %}
+{% endblock %}
+
+{% block content %}
+{% trans "Overview of resort performance and alerts" as subtitle_text %}
+{% include "components/resort_cover.html" with title="Delta Sharm Operations Center" subtitle=subtitle_text %}
+
+<div class="flex flex-col lg:flex-row lg:gap-8">
+    <div class="grow">
+        {% include "components/kpi_grid.html" %}
+        {% include "components/quick_access.html" %}
+    </div>
+    <div class="w-full lg:w-80 shrink-0">
+        {% if top_debtors or recent_activity %}
+            {% include "components/dashboard_lists.html" %}
+        {% else %}
+            {% include "unfold/helpers/history.html" %}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

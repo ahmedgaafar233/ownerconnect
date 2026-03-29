@@ -1,0 +1,485 @@
+{% extends "unfold/layouts/base_simple.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+    tailwind.config = {
+        darkMode: 'class',
+        theme: {
+            extend: {
+                colors: {
+                    primary: {
+                        50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd',
+                        400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8',
+                        800: '#1e40af', 900: '#1e3a8a', 950: '#172554',
+                    }
+                }
+            }
+        }
+    }
+</script>
+<style>
+    body {
+        font-family: 'Inter', sans-serif;
+    }
+
+    .premium-table {
+        border-collapse: separate;
+        border-spacing: 0;
+        width: 100%;
+    }
+
+    .premium-table thead {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .premium-table th {
+        background: #1e3a8a;
+        color: white;
+        text-transform: uppercase;
+        font-size: 0.65rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        padding: 14px 16px;
+        white-space: nowrap;
+        border-left: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .premium-table th:last-child {
+        border-left: none;
+    }
+
+    .premium-table td {
+        padding: 12px 16px;
+        border-bottom: 1px solid #f1f5f9;
+        border-left: 1px solid #f8fafc;
+        font-size: 0.85rem;
+        vertical-align: middle;
+    }
+
+    .premium-table td:last-child {
+        border-left: none;
+    }
+
+    .premium-table tbody tr:nth-child(even) {
+        background-color: #f8fafc;
+    }
+
+    .premium-table tbody tr:hover td {
+        background-color: #eff6ff;
+    }
+
+    .premium-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .row-num {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        background: #e2e8f0;
+        border-radius: 6px;
+        font-size: 0.7rem;
+        font-weight: 800;
+        color: #64748b;
+    }
+
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+
+        .premium-table th {
+            background: #1e3a8a !important;
+            color: white !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .premium-table tbody tr:nth-child(even) {
+            background-color: #f8fafc !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .print-only {
+            display: none;
+        }
+
+        @media print {
+            .print-only {
+                display: block !important;
+            }
+            #header, .sidebar, nav, .no-print, button, form, .unfold-sidebar, .unfold-nav, .search-container {
+                display: none !important;
+            }
+            body {
+                background: white !important;
+                padding: 0 !important;
+                color: black !important;
+                font-size: 10pt !important;
+            }
+            .main-content {
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            @page {
+                size: A4;
+                margin: 1.5cm;
+            }
+            .premium-table {
+                border: 1px solid #000 !important;
+                width: 100% !important;
+                table-layout: auto !important;
+            }
+            .premium-table thead {
+                display: table-header-group !important;
+            }
+            .premium-table tr {
+                page-break-inside: avoid !important;
+            }
+            .premium-table th {
+                background: #eee !important;
+                color: black !important;
+                border: 1px solid #000 !important;
+                padding: 8px !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .premium-table td {
+                border: 1px solid #eee !important;
+                color: black !important;
+                padding: 6px !important;
+            }
+            .premium-table tbody tr:nth-child(even) {
+                background-color: #f9f9f9 !important;
+            }
+            /* Colors for BW print */
+            .text-green-600, .text-green-700, .text-red-600, .text-red-700, .text-primary-600 {
+                color: black !important;
+                font-weight: bold !important;
+            }
+            .bg-green-50, .bg-primary-50, .bg-blue-50 {
+                background: transparent !important;
+                border: 1px solid #eee !important;
+            }
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="px-4 py-6 md:px-8 bg-gray-50 dark:bg-gray-900 min-h-screen" dir="rtl">
+    <div class="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+            <h1 class="text-3xl font-extrabold text-gray-900 dark:text-white flex items-center gap-3">
+                <span class="material-symbols-outlined text-primary-600" style="font-size: 2.5rem;">receipt_long</span>
+                {{ title }}
+            </h1>
+            <p class="text-gray-500 dark:text-gray-400 mt-1 font-medium italic"> Delta Sharm Resort — Delta Real Estate
+            </p>
+        </div>
+        <div class="flex flex-wrap gap-3 no-print">
+            <button onclick="window.print()" class="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-black rounded-xl shadow-lg shadow-primary-500/30 transition-all flex items-center gap-2 text-sm">
+                <span class="material-symbols-outlined" style="font-size:1.2rem;">print</span> طباعة الكشف
+            </button>
+            <div class="w-px h-8 bg-gray-200 dark:bg-gray-700 mx-1"></div>
+            <form method="get" class="flex flex-col md:flex-row gap-4 items-end">
+                {% if mode == "day" %}
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">بحث عن يوم</label>
+                    <input type="date" name="date" value="{{ selected_date }}" onchange="this.form.submit()"
+                        class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-primary-500 transition-all font-bold text-gray-700 dark:text-gray-200 shadow-sm">
+                </div>
+                {% else %}
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">الشهر</label>
+                    <input type="month" name="month" value="{{ selected_month }}" onchange="this.form.submit()"
+                        class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-primary-500 transition-all font-bold text-gray-700 dark:text-gray-200 shadow-sm">
+                </div>
+                {% endif %}
+            </form>
+            <div class="hidden md:block w-px h-10 bg-gray-200 dark:bg-gray-700"></div>
+        </div>
+    </div>
+
+    <div class="flex items-center justify-between mb-6 no-print">
+        <a href="{{ prev_link }}"
+            class="flex items-center gap-1 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm">
+            <span class="material-symbols-outlined" style="font-size:1.1rem;">arrow_forward</span> {{ prev_label }}
+        </a>
+        <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary-500" style="font-size:1.3rem;">{{ mode_icon }}</span>
+            <span class="text-lg font-bold text-gray-800 dark:text-gray-200">{{ label }}</span>
+            {% if is_today %}
+            <span
+                class="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-bold rounded-full animate-pulse">
+                LIVE
+            </span>
+            {% endif %}
+        </div>
+        {% if can_go_next %}
+        <a href="{{ next_link }}"
+            class="flex items-center gap-1 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm">
+            {{ next_label }} <span class="material-symbols-outlined" style="font-size:1.1rem;">arrow_back</span>
+        </a>
+        {% else %}
+        <div class="w-32"></div>
+        {% endif %}
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 no-print">
+        <div
+            class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div
+                class="w-12 h-12 bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center">
+                <span class="material-symbols-outlined" style="font-size: 1.8rem;">confirmation_number</span>
+            </div>
+            <div>
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-0.5">عدد الإيصالات</p>
+                <p class="text-2xl font-black text-gray-900 dark:text-white">{{ total_count }} <span
+                        class="text-[10px] font-medium text-gray-400">إيصال</span></p>
+            </div>
+        </div>
+        <div
+            class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-4 hover:shadow-md transition-shadow border-b-4 border-b-green-500">
+            <div
+                class="w-12 h-12 bg-green-50 dark:bg-green-900/40 text-green-600 dark:text-green-400 rounded-xl flex items-center justify-center">
+                <span class="material-symbols-outlined" style="font-size: 1.8rem;">payments</span>
+            </div>
+            <div>
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-0.5">إجمالي التحصيل</p>
+                <p class="text-2xl font-black text-gray-900 dark:text-white">
+                    {{ total_amount|floatformat:2 }}
+                    <span class="text-[10px] font-medium text-gray-400">EGP</span>
+                </p>
+            </div>
+        </div>
+        <div
+            class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div
+                class="w-12 h-12 bg-purple-50 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 rounded-xl flex items-center justify-center">
+                <span class="material-symbols-outlined" style="font-size: 1.8rem;">account_balance</span>
+            </div>
+            <div>
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-0.5">أصل المديونيات</p>
+                <p class="text-2xl font-black text-gray-900 dark:text-white">
+                    {{ original_debt|floatformat:2 }}
+                    <span class="text-[10px] font-medium text-gray-400">EGP</span>
+                </p>
+            </div>
+        </div>
+        {% if user.role != "DATA_ENTRY" %}
+        <div
+            class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-4 hover:shadow-md transition-shadow border-b-4 border-b-red-500">
+            <div
+                class="w-12 h-12 bg-red-50 dark:bg-red-900/40 text-red-600 dark:text-red-400 rounded-xl flex items-center justify-center">
+                <span class="material-symbols-outlined" style="font-size: 1.8rem;">pending_actions</span>
+            </div>
+            <div>
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-0.5">باقي المديونيات</p>
+                <p class="text-2xl font-black text-gray-900 dark:text-white">
+                    {{ remaining_debt|floatformat:2 }}
+                    <span class="text-[10px] font-medium text-gray-400">EGP</span>
+                </p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div
+        class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div class="px-6 py-4 bg-gradient-to-l from-primary-800 to-primary-900 flex justify-between items-center">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                <span class="material-symbols-outlined" style="font-size: 1.2rem;">table_chart</span> تفاصيل إيصالات
+                التحصيل
+                {% if payments %}
+                <span class="px-2 py-0.5 bg-white/20 text-white text-[10px] font-bold rounded-full">
+                    {{ total_count }} سجل
+                </span>
+                {% endif %}
+            </h3>
+            <div class="flex gap-2 no-print">
+                <button onclick="window.print()" class="p-2 text-white/60 hover:text-white transition-colors"
+                    title="طباعة"> <span class="material-symbols-outlined" style="font-size: 1.2rem;">print</span>
+                </button>
+            </div>
+        </div>
+        <div class="overflow-x-auto" style="max-height: 70vh;">
+            <table class="premium-table">
+                <thead>
+                    <tr>
+                        <th class="text-center" style="width: 50px;">#</th>
+                        <th>
+                            <div class="flex items-center gap-1.5"><span class="material-symbols-outlined"
+                                    style="font-size:0.9rem;">tag</span> رقم الإيصال</div>
+                        </th>
+                        <th>
+                            <div class="flex items-center gap-1.5"><span class="material-symbols-outlined"
+                                    style="font-size:0.9rem;">apartment</span> الوحدة</div>
+                        </th>
+                        <th>
+                            <div class="flex items-center gap-1.5"><span class="material-symbols-outlined"
+                                    style="font-size:0.9rem;">schedule</span> الوقت</div>
+                        </th>
+                        <th>
+                            <div class="flex items-center gap-1.5"><span class="material-symbols-outlined"
+                                    style="font-size:0.9rem;">payments</span> المدفوع</div>
+                        </th>
+                        <th>
+                            <div class="flex items-center gap-1.5"><span class="material-symbols-outlined"
+                                    style="font-size:0.9rem;">account_balance_wallet</span> الباقي</div>
+                        </th>
+                        <th>
+                            <div class="flex items-center gap-1.5"><span class="material-symbols-outlined"
+                                    style="font-size:0.9rem;">person</span> المالك</div>
+                        </th>
+                        <th>
+                            <div class="flex items-center gap-1.5"><span class="material-symbols-outlined"
+                                    style="font-size:0.9rem;">badge</span> بواسطة</div>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in payments %}
+                    <tr>
+                        <td class="text-center"> <span class="row-num">{{ forloop.counter }}</span> </td>
+                        <td>
+                            <span
+                                class="font-mono text-xs font-bold text-primary-700 dark:text-primary-400 px-2.5 py-1 bg-primary-50 dark:bg-primary-900/30 rounded-md border border-primary-100 dark:border-primary-800 inline-block">
+                                {{ p.receipt_no }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="flex flex-col">
+                                <span class="text-sm font-black text-blue-900 dark:text-blue-100">
+                                    مبنى {{ p.unit.building_no }}
+                                </span>
+                                <span class="text-xs text-blue-700 dark:text-blue-400 font-bold">
+                                    وحدة {{ p.unit.unit_no }}
+                                </span>
+                                <span class="text-[10px] text-gray-400 font-medium">({{ p.unit.unit_key }})</span>
+                            </div>
+                        </td>
+                        <td class="text-sm text-gray-500 dark:text-gray-400 font-mono font-medium">
+                            {{ p.paid_at|date:"H:i" }}
+                        </td>
+                        <td>
+                            <span
+                                class="text-sm font-black text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded-md inline-block">
+                                {{ p.total_amount|floatformat:2 }}
+                                <span class="text-[9px] font-medium text-green-500">EGP</span>
+                            </span>
+                        </td>
+                        <td>
+                            {% if p.unit_balance <= 0 %}
+                            <span class="text-sm font-black text-green-600 dark:text-green-400 uppercase tracking-tighter">
+                                تم السداد
+                            </span>
+                            {% else %}
+                            <span class="text-sm font-black text-red-600 dark:text-red-400">
+                                {{ p.unit_balance|floatformat:2 }}
+                                <span class="text-[9px] font-medium text-red-400">باقي</span>
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="flex flex-col">
+                                {% with owner_unit=p.unit.owner_units.first %}
+                                {% if owner_unit %}
+                                <span class="text-xs font-bold text-gray-900 dark:text-white">
+                                    {% if user.role == "DATA_ENTRY" %}
+                                        {{ owner_unit.owner.fullname|default:"---" }}
+                                    {% else %}
+                                        {{ owner_unit.owner.fullname|default:"---" }}
+                                        <div class="text-[10px] text-gray-400 font-mono">{{ owner_unit.owner.phone }}</div>
+                                    {% endif %}
+                                </span>
+                                {% else %}
+                                <span class="text-xs text-gray-300 italic">No owner</span>
+                                {% endif %}
+                                {% endwith %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="flex items-center gap-2">
+                                <span
+                                    class="w-7 h-7 rounded-full bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center text-[10px] font-bold text-primary-700 dark:text-primary-400 uppercase">
+                                    {{ p.created_by.fullname|default:p.created_by.phone|slice:":1" }}
+                                </span>
+                                <span class="text-xs text-gray-600 dark:text-gray-400 font-bold">
+                                    {{ p.created_by.fullname|default:p.created_by.phone }}
+                                </span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="px-6 py-20 text-center">
+                            <div class="flex flex-col items-center"> <span
+                                    class="material-symbols-outlined text-gray-200 dark:text-gray-700"
+                                    style="font-size: 5rem;">empty_dashboard</span>
+                                <p class="text-gray-400 dark:text-gray-500 mt-4 font-bold text-lg italic">لا توجد عمليات
+                                    تحصيل مسجلة لهذا اليوم</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if payments %}
+                <tfoot>
+                    <tr class="border-t-2 border-primary-200 dark:border-primary-800"
+                        style="background: linear-gradient(135deg, #eff6ff, #dbeafe);">
+                        <td class="text-center px-4 py-4"> <span class="material-symbols-outlined text-primary-600"
+                                style="font-size:1.2rem;">functions</span> </td>
+                        <td colspan="4" class="px-4 py-4"></td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+        
+        <!-- Print Only Header -->
+        <div class="hidden print:block mb-6 border-b-2 border-black pb-4">
+            <div class="flex justify-between items-start">
+                <div class="text-right">
+                    <h1 class="text-2xl font-black mb-1">كشف التحصيلات والعمليات</h1>
+                    <p class="text-lg font-bold">الفترة: {{ label }}</p>
+                    <p class="text-sm font-bold mt-1">منتجع: {{ request.user.resort.name|default:"الكل" }}</p>
+                </div>
+                <div class="text-left border-2 border-black p-4 rounded-xl">
+                    <p class="text-xs font-black uppercase mb-1">ملخص الكشف</p>
+                    <p class="text-xl font-black">إجمالي التحصيل: {{ total_amount|floatformat:2 }} <span class="text-xs">EGP</span></p>
+                    <p class="text-sm font-bold mt-1 text-gray-600">عدد العمليات: {{ payments|length }}</p>
+                </div>
+            </div>
+            <p class="text-[10px] mt-4 italic text-gray-500">ملاحظة: هذا الكشف مخصص للمراجعة الداخلية ومطابقة العجز والزيادة.</p>
+        </div>
+
+        <!-- Signature Section for Print -->
+        <div class="hidden print:grid grid-cols-3 gap-8 mt-16 px-4">
+            <div class="text-center">
+                <p class="font-black text-xs mb-14 uppercase tracking-tighter">توقيع المحاسب</p>
+                <div class="border-t border-black w-full mx-auto mb-2"></div>
+                <p class="text-[9px] font-bold">{{ request.user.fullname|default:request.user.phone }}</p>
+            </div>
+            <div class="text-center">
+                <p class="font-black text-xs mb-14 uppercase tracking-tighter">يعتمد / مشرف الحسابات</p>
+                <div class="border-t border-black w-full mx-auto"></div>
+            </div>
+            <div class="text-center">
+                <p class="font-black text-xs mb-14 uppercase tracking-tighter">المدير المالي</p>
+                <div class="border-t border-black w-full mx-auto"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

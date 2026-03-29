@@ -1,0 +1,85 @@
+{% load i18n humanize %}
+
+<div class="space-y-6">
+    <!-- Recent Activity -->
+    <div class="dashboard-list-card">
+        <div class="dashboard-list-card__header">
+            <h3 class="flex items-center gap-2 font-bold">
+                <span class="material-symbols-outlined text-primary-600">history</span>
+                {% trans "Recent Movements" %}
+            </h3>
+        </div>
+        <div class="dashboard-list-card__body overflow-y-auto max-h-[400px]">
+            {% if recent_activity %}
+                <div class="divide-y divide-gray-100">
+                    {% for action in recent_activity %}
+                    <div class="py-3 flex justify-between items-center group hover:bg-gray-50 px-2 rounded-lg transition-colors">
+                        <div class="flex flex-col">
+                            <span class="font-bold text-sm">{{ action.unit.unit_key }}</span>
+                            <span class="text-[10px] text-gray-500">{{ action.paid_at|naturaltime }}</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="font-black text-green-700 block">{{ action.total_amount|floatformat:2 }}</span>
+                            <span class="text-[10px] text-gray-400">بواسطة {{ action.created_by.fullname|default:action.created_by.phone }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-sm text-gray-400 py-4 text-center italic">{% trans "No recent activity" %}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Top Debtors -->
+    <div class="dashboard-list-card">
+        <div class="dashboard-list-card__header flex justify-between items-center">
+            <h3 class="flex items-center gap-2 font-bold">
+                <span class="material-symbols-outlined text-danger-600">warning</span>
+                {% trans "Top Debtors" %}
+            </h3>
+            <span class="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold">Top 50</span>
+        </div>
+        <div class="dashboard-list-card__body overflow-y-auto max-h-[600px]">
+            {% if top_debtors %}
+                <div class="divide-y divide-gray-100">
+                    {% for item in top_debtors %}
+                    <a href="/admin/core/unit/{{ item.unit.id }}/change/" class="py-3 flex justify-between items-center group hover:bg-red-50 px-2 rounded-lg transition-colors block">
+                        <div class="flex flex-col">
+                            <span class="font-bold text-sm">{{ item.unit_key }}</span>
+                            <div class="flex items-center gap-1 mt-1">
+                                {% if item.aging_months > 0 %}
+                                    <span class="text-[10px] {% if item.aging_months > 1 %}bg-red-600 text-white{% else %}bg-orange-500 text-white{% endif %} px-1.5 rounded-md font-bold">
+                                        متأخر منذ {{ item.aging_months }} شهر
+                                    </span>
+                                {% else %}
+                                    <span class="text-[10px] text-gray-400">ملتحق حديثاً</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            {% if item.unit_is_paid_off %}
+                            <span class="text-sm font-bold text-green-600">0.00</span>
+                            {% else %}
+                            <span class="text-sm font-black text-red-600 dark:text-red-400">
+                                {{ item.unit_balance|floatformat:2 }}
+                                <span class="text-[9px] font-medium text-red-400">EGP</span>
+                            </span>
+                            {% endif %}
+                            <span class="text-[10px] text-primary-600 font-bold group-hover:underline block">متابعة ←</span>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+                <div class="mt-4 pt-4 border-t border-gray-100 text-center">
+                    <a href="/admin/core/unit/?has_balance=1" class="text-xs font-black text-primary-600 hover:underline flex items-center justify-center gap-1">
+                        {% trans "View All Unpaid Units" %}
+                        <span class="material-symbols-outlined text-sm">open_in_new</span>
+                    </a>
+                </div>
+            {% else %}
+                <p class="text-sm text-gray-400 py-4 text-center italic">{% trans "Fully collected!" %}</p>
+            {% endif %}
+        </div>
+    </div>
+</div>

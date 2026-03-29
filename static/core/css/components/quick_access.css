@@ -1,0 +1,42 @@
+/* ── Quick Access ── */
+.quick-access {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e5e7eb;
+    margin-bottom: 24px;
+}
+
+.quick-access__heading {
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #6b7280;
+    margin: 0 0 16px 0;
+}
+
+.quick-access__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+}
+
+.quick-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    text-decoration: none;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #334155;
+    border: 1px solid #e2e8f0;
+    transition: transform 0.15s;
+}
+
+.quick-link:hover {
+    transform: translateY(-1px);
+}
