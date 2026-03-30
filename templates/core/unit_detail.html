@@ -1,0 +1,143 @@
+{% extends 'unfold/layouts/base.html' %}
+{% load i18n static %}
+
+{% block content %}
+<div class="p-6 max-w-6xl mx-auto">
+    <!-- Header with Breadcrumbs & Actions -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+        <div>
+            <nav class="flex text-sm text-gray-500 mb-2 gap-2 font-bold">
+                <a href="{% url 'unit_search' %}" class="hover:text-primary-600">{% trans "بحث الوحدات" %}</a>
+                <span>/</span>
+                <span class="text-gray-900">{% trans "تفاصيل الوحدة" %}</span>
+            </nav>
+            <h1 class="text-3xl font-black text-gray-900 flex items-center gap-3">
+                <span class="material-symbols-outlined text-4xl text-primary-600">villa</span>
+                {{ unit.unit_key }}
+            </h1>
+        </div>
+        <div class="flex gap-3">
+            <a href="{% url 'unit_statement' unit.id %}" target="_blank" class="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-100 rounded-xl font-bold text-gray-700 hover:bg-gray-50 transition-all shrink-0">
+                <span class="material-symbols-outlined text-xl text-gray-400">print</span>
+                {% trans "طباعة كشف حساب" %}
+            </a>
+            <a href="{% url 'record_payment' %}?unit={{ unit.id }}" class="flex items-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition-all shadow-lg shadow-primary-200 shrink-0">
+                <span class="material-symbols-outlined text-xl text-white/80">add_card</span>
+                {% trans "تسجيل تحصيل" %}
+            </a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Left: Unit & Owner Info -->
+        <div class="lg:col-span-1 space-y-6">
+            <!-- Balance Card -->
+            <div class="bg-white rounded-3xl shadow-sm border-b-8 border-{{ balance|default:0|yesno:'danger,success' }} p-8 text-center bg-gray-50/20">
+                <p class="text-gray-500 font-bold uppercase tracking-widest text-xs mb-4">{% trans "الرصيد المتبقي" %}</p>
+                <div class="text-4xl font-black text-gray-900 mb-2">{{ balance|floatformat:2 }} <small class="text-lg">EGP</small></div>
+                {% if balance > 0 %}
+                    <span class="inline-flex px-4 py-1 bg-red-100 text-red-700 rounded-full text-xs font-black">{% trans "مديونية مستحقة" %}</span>
+                {% else %}
+                    <span class="inline-flex px-4 py-1 bg-green-100 text-green-700 rounded-full text-xs font-black">{% trans "تم السداد بالكامل" %}</span>
+                {% endif %}
+            </div>
+
+            <!-- Owners Section -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="p-5 border-b border-gray-50 bg-gray-50/50 font-black text-gray-900 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-xl text-gray-400">person_search</span>
+                    {% trans "بيانات الملاك" %}
+                </div>
+                <div class="p-6 space-y-4">
+                    {% for owner in owners %}
+                    <div class="flex items-center gap-4 p-4 rounded-xl hover:bg-gray-50 transition-colors border-2 border-transparent hover:border-gray-100">
+                        <div class="w-12 h-12 bg-primary-50 rounded-full flex items-center justify-center text-primary-600 font-black">
+                            {{ owner.fullname|slice:":1"|default:"O" }}
+                        </div>
+                        <div>
+                            <p class="font-black text-gray-900">{{ owner.fullname|default:owner.phone }}</p>
+                            <p class="text-xs text-gray-500 font-bold">{{ owner.phone }}</p>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-center text-gray-400 py-4 italic">{% trans "لم يتم تعيين ملاك للوحدة بعد" %}</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Unit Identity -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+                <div class="flex justify-between items-center py-2 border-b border-gray-50">
+                    <span class="text-gray-500 font-bold">{% trans "رقم المبنى" %}</span>
+                    <span class="font-black text-gray-900 text-lg">{{ unit.building_no|default:"-" }}</span>
+                </div>
+                <div class="flex justify-between items-center py-2 border-b border-gray-50">
+                    <span class="text-gray-500 font-bold">{% trans "رقم الوحدة" %}</span>
+                    <span class="font-black text-gray-900 text-lg">{{ unit.unit_no|default:"-" }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Activity History -->
+        <div class="lg:col-span-2 space-y-8">
+            <!-- Transactions Tabs (Simple lists for now) -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="p-5 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center">
+                    <h2 class="font-black text-gray-900 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-xl text-gray-400">history</span>
+                        {% trans "المعاملات المالية (آخر عام)" %}
+                    </h2>
+                </div>
+
+                <!-- Combined History List -->
+                <div class="divide-y divide-gray-50">
+                    {% for charge in charges %}
+                    <div class="p-6 flex justify-between items-center hover:bg-gray-50/50 transition-all">
+                        <div class="flex items-center gap-5">
+                            <div class="w-12 h-12 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center font-black">
+                                <span class="material-symbols-outlined">receipt_long</span>
+                            </div>
+                            <div>
+                                <p class="font-black text-gray-900">{% trans "مطالبة مالية" %} #{{ charge.id }}</p>
+                                <p class="text-xs text-red-500 font-black uppercase tracking-wider">{{ charge.get_month_display }} {{ charge.year }}</p>
+                                <p class="text-[10px] text-gray-400 font-bold mt-1">{{ charge.created_at|date:"Y-m-d" }}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-black text-red-700 text-lg">{{ charge.amount|floatformat:2 }} <small>EGP</small></p>
+                            <p class="text-[10px] text-gray-400 font-bold">{% trans "غير مسددة بالكامل" %}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    {% for payment in payments %}
+                    <div class="p-6 flex justify-between items-center hover:bg-gray-50/50 transition-all border-r-4 border-green-500">
+                        <div class="flex items-center gap-5">
+                            <div class="w-12 h-12 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center font-black">
+                                <span class="material-symbols-outlined">payments</span>
+                            </div>
+                            <div>
+                                <p class="font-black text-gray-900">{% trans "تحصيل نقدى / حوالة" %}</p>
+                                <p class="text-xs font-bold text-gray-500">{% trans "إيصال رقم" %}: {{ payment.receipt_no }}</p>
+                                <p class="text-[10px] text-gray-400 font-bold mt-1">{{ payment.paid_at|date:"Y-m-d H:i" }}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-black text-green-700 text-lg">{{ payment.total_amount|floatformat:2 }} <small>EGP</small></p>
+                            <p class="text-[10px] text-green-500 font-bold uppercase">{% trans "عملية ناجحة" %}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    {% if not charges and not payments %}
+                    <div class="p-20 text-center text-gray-300">
+                        <span class="material-symbols-outlined text-6xl block mb-4">folder_off</span>
+                        {% trans "لا يوجد تاريخ مالي مسجل لهذه الوحدة خلال العام الحالي" %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -12,3 +12,19 @@
     {% endfor %}
 </div>
 {% endif %}
+
+<style>
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+    margin-bottom: 32px;
+    width: 100%;
+}
+
+@media (max-width: 768px) {
+    .kpi-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>

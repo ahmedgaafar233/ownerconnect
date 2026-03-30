@@ -1,0 +1,76 @@
+{% extends 'unfold/layouts/base.html' %}
+{% load i18n %}
+
+{% block breadcrumbs %}{% endblock %}
+
+{% block content %}
+<div class="flex flex-col lg:flex-row gap-6 p-6 h-[85vh]">
+    <!-- User List / Sidebar -->
+    <div class="w-full lg:w-1/3 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
+        <div class="p-6 border-b border-gray-50 bg-gray-50/50">
+            <h2 class="text-xl font-bold text-gray-900 mb-4">{% trans "Internal Messenger" %}</h2>
+            <div class="relative">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                    <span class="material-symbols-outlined">search</span>
+                </span>
+                <input type="text" id="user-search" class="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-primary-500 focus:border-primary-500 bg-white" placeholder="{% trans 'Search staff...' %}">
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto" id="threads-list">
+            {% if threads %}
+                <div class="px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">{% trans "Recent Chats" %}</div>
+                {% for thread in threads %}
+                <a href="{% url 'messenger:thread_detail' thread.id %}" class="flex items-center px-6 py-4 hover:bg-primary-50/50 transition-colors border-b border-gray-50">
+                    <div class="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-lg mr-4 uppercase">
+                        {{ thread.participants.all.0.phone|slice:":2" }}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-bold text-gray-900 truncate">
+                            {% for p in thread.participants.all %}
+                                {% if p != user %}{{ p.fullname|default:p.phone }}{% endif %}
+                            {% endfor %}
+                        </p>
+                        <p class="text-xs text-gray-500 truncate">{{ thread.messages.last.text|default:"No messages yet" }}</p>
+                    </div>
+                </a>
+                {% endfor %}
+            {% endif %}
+
+            <div class="px-3 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">{% trans "Start New Chat" %}</div>
+            {% for u in available_users %}
+            <a href="{% url 'messenger:new_direct' u.id %}" class="flex items-center px-6 py-3 hover:bg-gray-50 transition-colors group">
+                <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 mr-3 text-sm">
+                    <span class="material-symbols-outlined">person</span>
+                </div>
+                <div class="flex-1">
+                    <p class="text-sm font-medium text-gray-700 group-hover:text-primary-600">{{ u.fullname|default:u.phone }}</p>
+                    <p class="text-[10px] text-gray-400">{{ u.get_role_display }}</p>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Empty State / Placeholder for Thread Detail -->
+    <div class="hidden lg:flex flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 items-center justify-center text-center p-12">
+        <div>
+            <div class="w-20 h-20 bg-primary-50 rounded-full flex items-center justify-center text-primary-500 mx-auto mb-6">
+                <span class="material-symbols-outlined text-4xl">chat_bubble</span>
+            </div>
+            <h3 class="text-lg font-bold text-gray-900">{% trans "Select a conversation" %}</h3>
+            <p class="text-gray-500 mt-2 max-w-xs mx-auto">{% trans "Choose a colleague from the list to start a real-time secure conversation." %}</p>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('user-search').addEventListener('input', function(e) {
+    const term = e.target.value.toLowerCase();
+    document.querySelectorAll('#threads-list a').forEach(link => {
+        const text = link.textContent.toLowerCase();
+        link.style.display = text.includes(term) ? 'flex' : 'none';
+    });
+});
+</script>
+{% endblock %}

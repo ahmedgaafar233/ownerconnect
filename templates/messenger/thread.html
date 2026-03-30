@@ -1,0 +1,147 @@
+{% extends 'unfold/layouts/base.html' %}
+{% load i18n %}
+
+{% block breadcrumbs %}{% endblock %}
+
+{% block content %}
+<div class="flex flex-col lg:flex-row gap-4 p-4 h-[85vh]">
+    <!-- Mobile Back Button -->
+    <a href="{% url 'messenger:index' %}" class="lg:hidden flex items-center text-primary-600 mb-2">
+        <span class="material-symbols-outlined mr-1">arrow_back</span> {% trans "All Chats" %}
+    </a>
+
+    <!-- Main Chat Window -->
+    <div class="flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden relative">
+        <!-- Chat Header -->
+        <div class="p-4 border-b border-gray-50 flex items-center justify-between bg-white sticky top-0 z-10">
+            <div class="flex items-center">
+                <div class="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold mr-3 uppercase">
+                    {{ other_user.phone|slice:":2" }}
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-gray-900 leading-tight">{{ other_user.fullname|default:other_user.phone }}</h3>
+                    <p class="text-[10px] text-gray-500 uppercase tracking-wider">{{ other_user.get_role_display }}</p>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button class="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
+                    <span class="material-symbols-outlined">print</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Chat Messages Area -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/10" id="chat-log">
+            {% for msg in chat_messages %}
+            <div class="flex {% if msg.sender == user %}justify-end{% endif %}">
+                <div class="max-w-[70%] rounded-2xl p-3 shadow-sm {% if msg.sender == user %}bg-primary-600 text-white rounded-tr-none{% else %}bg-white text-gray-800 rounded-tl-none border border-gray-100{% endif %}">
+                    <p class="text-sm">{{ msg.text }}</p>
+                    <p class="text-[10px] mt-1 opacity-70 flex items-center {% if msg.sender == user %}justify-end{% endif %}">
+                        {{ msg.created_at|date:"H:i" }}
+                        {% if msg.sender == user %}
+                        <span class="material-symbols-outlined text-xs ml-1">done_all</span>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Chat Input Area -->
+        <div class="p-4 border-t border-gray-50 bg-white">
+            <div class="flex items-center gap-3">
+                <button class="flex-shrink-0 w-10 h-10 rounded-xl bg-gray-50 text-gray-400 hover:text-primary-600 hover:bg-primary-50 transition-all">
+                    <span class="material-symbols-outlined">attach_file</span>
+                </button>
+                <div class="flex-1 relative">
+                    <input type="text" id="chat-message-input" 
+                           class="w-full pl-4 pr-12 py-3 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:bg-white transition-all shadow-inner"
+                           placeholder="{% trans 'Type a message...' %}">
+                    <button id="chat-message-submit" class="absolute right-2 top-1.5 w-8 h-8 rounded-lg bg-primary-600 text-white flex items-center justify-center hover:bg-primary-700 active:scale-95 transition-all">
+                        <span class="material-symbols-outlined text-sm">send</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{ thread.id|json_script:"thread-id" }}
+{{ user.id|json_script:"current-user-id" }}
+
+<script>
+    const threadId = JSON.parse(document.getElementById('thread-id').textContent);
+    const currentUserId = JSON.parse(document.getElementById('current-user-id').textContent);
+    
+    // Auto-scroll to bottom
+    const chatLog = document.getElementById('chat-log');
+    chatLog.scrollTop = chatLog.scrollHeight;
+
+    const chatSocket = new WebSocket(
+        (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + 
+        window.location.host + '/ws/chat/' + threadId + '/'
+    );
+
+    chatSocket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        const isMe = data.sender_id === currentUserId;
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `flex ${isMe ? 'justify-end' : ''}`;
+        
+        messageDiv.innerHTML = `
+            <div class="max-w-[70%] rounded-2xl p-3 shadow-sm ${isMe ? 'bg-primary-600 text-white rounded-tr-none' : 'bg-white text-gray-800 rounded-tl-none border border-gray-100'}">
+                <p class="text-sm">${data.message}</p>
+                <p class="text-[10px] mt-1 opacity-70 flex items-center ${isMe ? 'justify-end' : ''}">
+                    ${data.created_at}
+                    ${isMe ? '<span class="material-symbols-outlined text-xs ml-1">done_all</span>' : ''}
+                </p>
+            </div>
+        `;
+        
+        chatLog.appendChild(messageDiv);
+        chatLog.scrollTop = chatLog.scrollHeight;
+    };
+
+    chatSocket.onclose = function(e) {
+        console.error('Chat socket closed unexpectedly');
+    };
+
+    document.querySelector('#chat-message-input').focus();
+    document.querySelector('#chat-message-input').onkeyup = function(e) {
+        if (e.keyCode === 13) {  // enter, return
+            document.querySelector('#chat-message-submit').click();
+        }
+    };
+
+    document.querySelector('#chat-message-submit').onclick = function(e) {
+        const messageInputDom = document.querySelector('#chat-message-input');
+        const message = messageInputDom.value.trim();
+        if (message) {
+            chatSocket.send(JSON.stringify({
+                'message': message
+            }));
+            messageInputDom.value = '';
+        }
+    };
+</script>
+
+<style>
+    /* Material Symbols setup */
+    .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    
+    /* Scrollbar styling */
+    #chat-log::-webkit-scrollbar {
+        width: 4px;
+    }
+    #chat-log::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    #chat-log::-webkit-scrollbar-thumb {
+        background: #e5e7eb;
+        border-radius: 10px;
+    }
+</style>
+{% endblock %}

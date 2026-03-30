@@ -36,6 +36,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    "daphne",
     "unfold",
     'django.contrib.admin',
     'django.contrib.auth',
@@ -54,9 +55,9 @@ INSTALLED_APPS = [
     "billing",
     "imports",
     "support",
+    "messenger",
     "collections_app.apps.CollectionsAppConfig",
-
-    
+    "channels",
 ]
 
 MIDDLEWARE = [
@@ -90,6 +91,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'config.wsgi.application'
+ASGI_APPLICATION = 'config.asgi.application'
 
 
 # Database
@@ -224,6 +226,7 @@ UNFOLD = {
     ],
     "SCRIPTS": [
         lambda request: "/static/core/js/sidebar_drawer.js",
+        lambda request: "/static/core/js/sidebar_filter.js",
     ],
     "SIDEBAR": {
         "show_search": True,
@@ -244,6 +247,12 @@ UNFOLD = {
             "900": "30 58 138",
             "950": "23 37 84",
         },
+    },
+}
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
     },
 }
 

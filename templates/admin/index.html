@@ -8,8 +8,7 @@
 <link rel="stylesheet" href="{% static 'core/css/dashboard.css' %}">
 {% endblock %}
 
-{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin')
-}}{% endblock %}
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
 
 {% block branding %}
 {% include "unfold/helpers/site_branding.html" %}

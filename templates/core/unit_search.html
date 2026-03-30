@@ -1,0 +1,82 @@
+{% extends 'unfold/layouts/base.html' %}
+{% load i18n static %}
+
+{% block content %}
+<div class="p-6 max-w-6xl mx-auto">
+    <div class="mb-8">
+        <h1 class="text-3xl font-black text-gray-900 mb-2">{% trans "بحث الوحدات والادارة" %}</h1>
+        <p class="text-gray-500">{% trans "ابحث عن وحدة برقمها أو ابحث عن اسم المالك لعرض كافة وحداته" %}</p>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
+        <form method="GET" action="." class="flex gap-4">
+            <div class="relative grow">
+                <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">search</span>
+                <input type="text" name="q" value="{{ query }}" 
+                       placeholder="{% trans 'رقم الوحدة (12/305) أو اسم المالك...' %}"
+                       class="w-full pl-12 pr-4 py-4 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-primary-500 font-medium text-lg">
+            </div>
+            <button type="submit" class="bg-primary-600 hover:bg-primary-700 text-white px-8 py-4 rounded-xl font-bold transition-all shadow-lg shadow-primary-200 flex items-center gap-2">
+                {% trans "بحث" %}
+            </button>
+        </form>
+    </div>
+
+    {% if query %}
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="p-6 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
+            <h2 class="font-bold text-gray-900">
+                {% if search_type == "unit" %}
+                    {% trans "نتائج البحث عن الوحدات" %}
+                {% else %}
+                    {% trans "نتائج البحث باسم المالك" %}
+                {% endif %}
+            </h2>
+            <span class="bg-primary-100 text-primary-700 px-3 py-1 rounded-full text-xs font-bold">
+                {{ results|length }} {% trans "نتيجة" %}
+            </span>
+        </div>
+
+        <table class="w-full text-right border-collapse">
+            <thead>
+                <tr class="bg-gray-50 text-gray-500 text-sm uppercase">
+                    <th class="p-4 font-bold border-b border-gray-100">{% trans "رقم الوحدة" %}</th>
+                    <th class="p-4 font-bold border-b border-gray-100">{% trans "المبنى" %}</th>
+                    <th class="p-4 font-bold border-b border-gray-100">{% trans "المالك" %}</th>
+                    <th class="p-4 font-bold border-b border-gray-100">{% trans "الاجراءات" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for unit in results %}
+                <tr class="hover:bg-gray-50/80 transition-colors border-b border-gray-50">
+                    <td class="p-4 font-bold text-gray-900">{{ unit.unit_key }}</td>
+                    <td class="p-4 text-gray-600">{{ unit.building_no|default:"-" }}</td>
+                    <td class="p-4 text-gray-600">
+                        {% for ou in unit.owner_units.all %}
+                            {{ ou.owner.fullname }}{% if not forloop.last %}, {% endif %}
+                        {% empty %}
+                            <span class="text-gray-400">---</span>
+                        {% endfor %}
+                    </td>
+                    <td class="p-4">
+                        <a href="{% url 'unit_detail' unit.id %}" class="inline-flex items-center gap-1 text-primary-600 font-bold hover:text-primary-800 underline decoration-2 underline-offset-4">
+                            {% trans "عرض التفاصيل" %}
+                            <span class="material-symbols-outlined text-sm">arrow_forward</span>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="p-12 text-center text-gray-400">
+                        <span class="material-symbols-outlined text-6xl mb-4 block">search_off</span>
+                        {% trans "لا يوجد نتائج لهذا البحث" %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -15,6 +15,7 @@ def get_navigation(request):
     is_super = user.is_superuser
 
     # Role helpers
+    is_sa = role == "SUPERADMIN"
     is_gm = role == "GENERAL_MANAGER"
     is_fm = role == "FINANCIAL_MANAGER"
     is_sv = role == "SUPERVISOR"
@@ -23,25 +24,39 @@ def get_navigation(request):
 
     nav = []
 
-    # ── Operation Center (everyone) ──
+    # ── Operation Center (everyone except SuperAdmin for chat) ──
+    center_items = [
+        {
+            "title": _("Dashboard"),
+            "icon": "space_dashboard",
+            "link": "/admin/",
+        },
+    ]
+    
+    if not is_sa:
+        center_items.append({
+            "title": _("Messenger"),
+            "icon": "chat_bubble",
+            "link": "/admin/messenger/",
+        })
+
     nav.append({
         "title": _("Operation Center"),
         "separator": False,
-        "items": [
-            {
-                "title": _("Dashboard"),
-                "icon": "space_dashboard",
-                "link": "/admin/",
-            },
-        ],
+        "items": center_items,
     })
 
     # ── Collections (Data Entry+) ──
     if is_super or is_gm or is_fm or is_sv or is_de:
         nav.append({
-            "title": "التحصيلات",
+            "title": _("Collections & Units"),
             "separator": True,
             "items": [
+                {
+                    "title": _("Unit Search"),
+                    "icon": "manage_search",
+                    "link": "/admin/unit-search/",
+                },
                 {
                     "title": "التحصيلات اليومية",
                     "icon": "payments",

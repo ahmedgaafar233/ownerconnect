@@ -6,8 +6,7 @@
         {% for ql in quick_links %}
         <a href="{{ ql.link }}" class="quick-link drawer-link"
             style="background:{{ ql.bg }};border-color:{{ ql.border }};">
-            <span class="material-symbols-outlined" style="color:{{ ql.icon_color }};font-size:1.2rem;">{{
-                ql.icon }}</span>
+            <span class="material-symbols-outlined" style="color:{{ ql.icon_color }};font-size:1.2rem;">{{ ql.icon }}</span>
             <div>{{ ql.title }}</div>
         </a>
         {% endfor %}

@@ -101,7 +101,7 @@ def dashboard_callback(request, context):
             "metric": f"{total_original_debt:,.2f} EGP",
             "footer": _("Total of all published charges"),
             "icon": "account_balance",
-            "color": "info",
+            "color": "danger",
             "link": "/admin/billing/charge/?status__exact=PUBLISHED",
         })
 
@@ -163,7 +163,7 @@ def dashboard_callback(request, context):
     # ────────────────────────────────────────────────
 
     # Collections (Supervisor+ / Data Entry)
-    if is_super or role in ("GENERAL_MANAGER", "FINANCIAL_MANAGER", "SUPERVISOR", "DATA_ENTRY"):
+    if is_super or role in ("GENERAL_MANAGER", "FINANCIAL_MANAGER", "SUPERVISOR"):
         quick_links.append({
             "title": _("Daily Collections"),
             "link": "/admin/daily-collections/",

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>كشف حساب وحدة - {{ unit.unit_key }}</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap');
+        body { 
+            font-family: 'Cairo', sans-serif; 
+            margin: 0; 
+            padding: 40px; 
+            color: #1a202c; 
+            line-height: 1.5;
+        }
+        .header { 
+            text-align: center; 
+            margin-bottom: 50px; 
+            border-bottom: 4px solid #1a202c; 
+            padding-bottom: 20px;
+        }
+        .header h1 { margin: 0; font-size: 28px; font-weight: 900; }
+        .header p { margin: 5px 0; color: #4a5568; font-weight: 700; }
+        
+        .info-grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 20px; 
+            margin-bottom: 40px; 
+        }
+        .info-box { 
+            background: #f7fafc; 
+            padding: 20px; 
+            border-radius: 12px; 
+            border: 1px solid #edf2f7;
+        }
+        .info-box h3 { margin: 0 0 10px 0; font-size: 14px; color: #718096; text-transform: uppercase; }
+        .info-box p { margin: 0; font-size: 18px; font-weight: 700; }
+
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-bottom: 40px; 
+        }
+        th { 
+            background: #1a202c; 
+            color: white; 
+            text-align: right; 
+            padding: 12px; 
+            font-size: 14px;
+        }
+        td { 
+            padding: 12px; 
+            border-bottom: 1px solid #edf2f7; 
+            font-size: 14px;
+        }
+        tr:nth-child(even) { background: #fdfdfd; }
+        
+        .totals { 
+            float: left; 
+            width: 300px; 
+            background: #1a202c; 
+            color: white; 
+            padding: 25px; 
+            border-radius: 16px;
+        }
+        .total-row { 
+            display: flex; 
+            justify-content: space-between; 
+            margin-bottom: 10px; 
+            font-size: 14px;
+        }
+        .total-row.grand { 
+            border-top: 1px solid #4a5568; 
+            padding-top: 15px; 
+            margin-top: 10px; 
+            font-size: 20px; 
+            font-weight: 900; 
+        }
+
+        .footer { 
+            margin-top: 100px; 
+            text-align: center; 
+            font-size: 12px; 
+            color: #a0aec0; 
+            border-top: 1px solid #edf2f7; 
+            padding-top: 20px;
+        }
+
+        @media print {
+            body { padding: 20px; }
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="margin-bottom: 20px; text-align: left;">
+        <button onclick="window.print()" style="padding: 10px 20px; cursor: pointer; background: #2563eb; color: white; border: none; border-radius: 8px; font-weight: bold;">طباعة كشف الحساب</button>
+    </div>
+
+    <div class="header">
+        <h1>كشف مديونية وتحصيلات وحدة</h1>
+        <p>{{ unit.resort.name }} - كشف رسمي مستخرج بتاريخ {% now "Y-m-d" %}</p>
+    </div>
+
+    <div class="info-grid">
+        <div class="info-box">
+            <h3>بيانات الوحدة</h3>
+            <p>{{ unit.unit_key }} (مبنى: {{ unit.building_no|default:"-" }} / شقة: {{ unit.unit_no|default:"-" }})</p>
+        </div>
+        <div class="info-box">
+            <h3>الفترة المحاسبية</h3>
+            <p>من {{ date_from }} إلى {{ date_to }}</p>
+        </div>
+    </div>
+
+    <h3>تفاصيل المطالبات المالية</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>التاريخ</th>
+                <th>البند / البيان</th>
+                <th>الفترة</th>
+                <th>المبلغ المطلوب</th>
+                <th>المسدد</th>
+                <th>المتبقي</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for charge in charges %}
+            <tr>
+                <td>{{ charge.created_at|date:"Y-m-d" }}</td>
+                <td>مطالبة رسوم خدمات</td>
+                <td>{{ charge.get_month_display }} {{ charge.year }}</td>
+                <td>{{ charge.amount|floatformat:2 }}</td>
+                <td>{{ charge.paid_total|floatformat:2 }}</td>
+                <td>{{ charge.remaining|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h3>سجل التحصيلات النقدية</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>التاريخ</th>
+                <th>نوع الحركة</th>
+                <th>رقم الإيصال</th>
+                <th>طريقة الدفع</th>
+                <th>المبلغ المحصل</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for payment in payments %}
+            <tr>
+                <td>{{ payment.paid_at|date:"Y-m-d" }}</td>
+                <td>تحصيل رسوم</td>
+                <td>{{ payment.receipt_no }}</td>
+                <td>نقدى / تحويل</td>
+                <td>{{ payment.total_amount|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="totals">
+        <div class="total-row">
+            <span>إجمالي المطالبات:</span>
+            <span>{{ total_due|floatformat:2 }} EGP</span>
+        </div>
+        <div class="total-row">
+            <span>إجمالي التحصيلات:</span>
+            <span>{{ total_paid|floatformat:2 }} EGP</span>
+        </div>
+        <div class="total-row grand">
+            <span>الرصيد المستحق:</span>
+            <span>{{ total_remaining|floatformat:2 }} EGP</span>
+        </div>
+    </div>
+
+    <div style="clear: both;"></div>
+
+    <div class="footer">
+        هذا الكشف صادر آلياً من نظام إدارة OwnerConnect ولا يعتد به كإيصال سداد نهائي دون الأختام الرسمية للمجمع.
+    </div>
+</body>
+</html>

@@ -1,0 +1,34 @@
+INFO Watching for file changes with StatReloader
+INFO "GET /admin/login/ HTTP/1.1" 302 0
+INFO "GET /admin/ HTTP/1.1" 200 23585
+WARNING Not Found: /favicon.ico
+WARNING "GET /favicon.ico HTTP/1.1" 404 4374
+WARNING Method Not Allowed (GET): /admin/logout/
+WARNING Method Not Allowed: /admin/logout/
+WARNING "GET /admin/logout/ HTTP/1.1" 405 0
+INFO "GET /admin/ HTTP/1.1" 200 23585
+INFO "POST /admin/logout/ HTTP/1.1" 200 7294
+INFO "GET /admin/ HTTP/1.1" 302 0
+INFO "GET /admin/login/?next=/admin/ HTTP/1.1" 200 9428
+INFO "POST /admin/login/?next=/admin/ HTTP/1.1" 200 10281
+INFO "POST /admin/login/?next=/admin/ HTTP/1.1" 302 0
+INFO "GET /admin/ HTTP/1.1" 200 23585
+INFO "GET /admin/login/ HTTP/1.1" 302 0
+INFO "GET /admin/ HTTP/1.1" 200 23585
+INFO "POST /admin/logout/ HTTP/1.1" 200 7294
+INFO "GET /admin/login/ HTTP/1.1" 200 9415
+INFO "POST /admin/login/ HTTP/1.1" 200 10268
+INFO "POST /admin/login/ HTTP/1.1" 302 0
+WARNING Not Found: /accounts/profile/
+WARNING "GET /accounts/profile/ HTTP/1.1" 404 4392
+INFO "GET /admin/ HTTP/1.1" 200 23585
+INFO /home/aamy/ownerconnect/config/dashboard.py changed, reloading.
+Performing system checks...
+
+System check identified no issues (0 silenced).
+March 30, 2026 - 03:41:49
+Django version 5.1.5, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+INFO Watching for file changes with StatReloader
