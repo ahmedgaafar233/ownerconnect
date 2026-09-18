@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../../../../core/constants/api_endpoints.dart';
 import 'auth_repository.dart';
 
@@ -8,6 +9,11 @@ class FirebaseAuthRepository implements AuthRepository {
   final fb.FirebaseAuth? _injectedFirebaseAuth;
   final Dio _dio;
   final FlutterSecureStorage _storage;
+
+  /// Cached between a Google/Email sign-in that returned `link_required` and
+  /// the follow-up [linkAccount] call — the phone+code submission must reuse
+  /// the exact same Firebase ID token, not a fresh one.
+  String? _pendingLinkIdToken;
 
   FirebaseAuthRepository({
     fb.FirebaseAuth? firebaseAuth,
@@ -101,6 +107,53 @@ class FirebaseAuthRepository implements AuthRepository {
     return _authenticateWithBackend('dev_test_token_$phone');
   }
 
+  @override
+  Future<Map<String, dynamic>> signInWithGoogle() async {
+    final account = await GoogleSignIn.instance.authenticate();
+    final googleIdToken = account.authentication.idToken;
+    if (googleIdToken == null) {
+      throw Exception('Google sign-in did not return an ID token.');
+    }
+
+    final credential = fb.GoogleAuthProvider.credential(idToken: googleIdToken);
+    final userCredential = await _firebaseAuth.signInWithCredential(credential);
+    final idToken = await userCredential.user?.getIdToken();
+    if (idToken == null || idToken.isEmpty) {
+      throw Exception('Failed to obtain Firebase ID token.');
+    }
+
+    return _authenticateWithBackend(idToken);
+  }
+
+  @override
+  Future<Map<String, dynamic>> signInWithEmail({required String email, required String password}) async {
+    final userCredential = await _firebaseAuth.signInWithEmailAndPassword(email: email, password: password);
+    final idToken = await userCredential.user?.getIdToken();
+    if (idToken == null || idToken.isEmpty) {
+      throw Exception('Failed to obtain Firebase ID token.');
+    }
+    return _authenticateWithBackend(idToken);
+  }
+
+  @override
+  Future<Map<String, dynamic>> registerWithEmail({required String email, required String password}) async {
+    final userCredential = await _firebaseAuth.createUserWithEmailAndPassword(email: email, password: password);
+    final idToken = await userCredential.user?.getIdToken();
+    if (idToken == null || idToken.isEmpty) {
+      throw Exception('Failed to obtain Firebase ID token.');
+    }
+    return _authenticateWithBackend(idToken);
+  }
+
+  @override
+  Future<Map<String, dynamic>> linkAccount({required String phone, required String code}) async {
+    final idToken = _pendingLinkIdToken;
+    if (idToken == null) {
+      throw Exception('No pending sign-in to link — please sign in again.');
+    }
+    return _authenticateWithBackend(idToken, phone: phone, code: code);
+  }
+
   /// Fetches the authenticated user's profile from /api/me/ and persists the
   /// resolved resort so every subsequent request is locked to it (see
   /// TenantInterceptor). Returns the raw profile map.
@@ -131,6 +184,12 @@ class FirebaseAuthRepository implements AuthRepository {
     return profile;
   }
 
+  @override
+  Future<Map<String, dynamic>> updateFullname(String fullname) async {
+    final response = await _dio.patch(ApiEndpoints.me, data: {'fullname': fullname});
+    return response.data as Map<String, dynamic>;
+  }
+
   /// Whether a stored access token exists. A quick local check used by the
   /// splash screen before deciding whether to call fetchAndPersistProfile.
   @override
@@ -139,25 +198,40 @@ class FirebaseAuthRepository implements AuthRepository {
     return token != null && token.isNotEmpty;
   }
 
-  /// Sends the Firebase ID Token to Django backend and saves the returned JWT.
-  Future<Map<String, dynamic>> _authenticateWithBackend(String idToken) async {
-    final response = await _dio.post(
-      ApiEndpoints.firebaseAuth,
-      data: {'id_token': idToken},
-    );
+  /// Sends the Firebase ID Token to Django backend and saves the returned JWT
+  /// — unless the backend responds with `link_required` (a first-time
+  /// Google/Email sign-in that isn't linked to any owner yet), in which case
+  /// no tokens exist yet and the id_token is cached for [linkAccount].
+  Future<Map<String, dynamic>> _authenticateWithBackend(
+    String idToken, {
+    String? phone,
+    String? code,
+  }) async {
+    final body = <String, dynamic>{'id_token': idToken};
+    if (phone != null) body['phone'] = phone;
+    if (code != null) body['code'] = code;
 
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      final data = response.data as Map<String, dynamic>;
-      final accessToken = data['access'] as String;
-      final refreshToken = data['refresh'] as String;
+    final response = await _dio.post(ApiEndpoints.firebaseAuth, data: body);
 
-      await _storage.write(key: 'access_token', value: accessToken);
-      await _storage.write(key: 'refresh_token', value: refreshToken);
-
-      return data;
-    } else {
+    if (response.statusCode != 200 && response.statusCode != 201) {
       throw Exception('Backend authentication failed: ${response.statusMessage}');
     }
+
+    final data = response.data as Map<String, dynamic>;
+
+    if (data['link_required'] == true) {
+      _pendingLinkIdToken = idToken;
+      return data;
+    }
+
+    final accessToken = data['access'] as String;
+    final refreshToken = data['refresh'] as String;
+
+    await _storage.write(key: 'access_token', value: accessToken);
+    await _storage.write(key: 'refresh_token', value: refreshToken);
+    _pendingLinkIdToken = null;
+
+    return data;
   }
 
   /// Sign out from Firebase and clear local JWTs. A session started via the

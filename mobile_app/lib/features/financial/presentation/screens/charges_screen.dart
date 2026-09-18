@@ -5,8 +5,9 @@ import '../../../../core/utils/app_localizations.dart';
 import '../bloc/financial_bloc.dart';
 import '../bloc/financial_event.dart';
 import '../bloc/financial_state.dart';
+import '../../../support/presentation/bloc/support_bloc.dart';
 import '../widgets/charge_card.dart';
-import 'payment_checkout_screen.dart';
+import 'payment_options_screen.dart';
 
 class ChargesScreen extends StatefulWidget {
   const ChargesScreen({Key? key}) : super(key: key);
@@ -59,26 +60,7 @@ class _ChargesScreenState extends State<ChargesScreen> {
       ),
       body: BlocConsumer<FinancialBloc, FinancialState>(
         listener: (context, state) {
-          if (state is PaymentInitiatedState) {
-            final checkoutUrl = state.paymentSession['checkout_url'] as String;
-            final merchantOrderId = state.paymentSession['merchant_order_id'] as String;
-
-            setState(() {
-              _selectedChargeIds.clear();
-            });
-
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => BlocProvider.value(
-                  value: context.read<FinancialBloc>(),
-                  child: PaymentCheckoutScreen(
-                    checkoutUrl: checkoutUrl,
-                    merchantOrderId: merchantOrderId,
-                  ),
-                ),
-              ),
-            );
-          } else if (state is FinancialErrorState) {
+          if (state is FinancialErrorState) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(state.errorMessage), backgroundColor: AppColors.error),
             );
@@ -145,9 +127,19 @@ class _ChargesScreenState extends State<ChargesScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
                         onPressed: () {
-                          context.read<FinancialBloc>().add(
-                                InitiatePaymentEvent(chargeIds: List.from(_selectedChargeIds)),
-                              );
+                          final selectedCharges =
+                              state.charges.where((c) => _selectedChargeIds.contains(c.id)).toList();
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => MultiBlocProvider(
+                                providers: [
+                                  BlocProvider.value(value: context.read<FinancialBloc>()),
+                                  BlocProvider.value(value: context.read<SupportBloc>()),
+                                ],
+                                child: PaymentOptionsScreen(selectedCharges: selectedCharges),
+                              ),
+                            ),
+                          );
                         },
                         child: Text('${loc.translate('pay_now')} (${_selectedChargeIds.length})'),
                       ),

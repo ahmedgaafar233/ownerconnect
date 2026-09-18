@@ -5,9 +5,11 @@ import 'package:intl_phone_field/intl_phone_field.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_localizations.dart';
+import '../../../../core/utils/phone_utils.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
+import 'email_auth_screen.dart';
 
 class PhoneEntryScreen extends StatefulWidget {
   const PhoneEntryScreen({Key? key}) : super(key: key);
@@ -37,11 +39,10 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen> {
           builder: (context, state) {
             final isLoading = state is AuthLoadingState;
 
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
                     loc.translate('login_title'),
@@ -53,6 +54,40 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen> {
                     style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
                   ),
                   const SizedBox(height: 32),
+                  OutlinedButton.icon(
+                    onPressed: isLoading
+                        ? null
+                        : () => context.read<AuthBloc>().add(const GoogleSignInRequested()),
+                    icon: const Icon(Icons.g_mobiledata, size: 28),
+                    label: Text(loc.translate('continue_with_google')),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: isLoading
+                        ? null
+                        : () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => BlocProvider.value(
+                                  value: context.read<AuthBloc>(),
+                                  child: const EmailAuthScreen(),
+                                ),
+                              ),
+                            ),
+                    icon: const Icon(Icons.email_outlined),
+                    label: Text(loc.translate('continue_with_email')),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      const Expanded(child: Divider()),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text(loc.translate('or_divider'), style: const TextStyle(color: AppColors.textSecondary)),
+                      ),
+                      const Expanded(child: Divider()),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
                   IntlPhoneField(
                     decoration: InputDecoration(
                       labelText: loc.translate('phone_hint'),
@@ -60,9 +95,19 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen> {
                     ),
                     initialCountryCode: 'EG',
                     onChanged: (phone) {
+                      // isValidNumber() throws (not just returns false) while
+                      // the number is still incomplete mid-typing — confirmed
+                      // on a real device, every keystroke before the number
+                      // was long enough crashed the app.
+                      bool isValid;
+                      try {
+                        isValid = phone.isValidNumber();
+                      } catch (_) {
+                        isValid = false;
+                      }
                       setState(() {
-                        _fullPhoneNumber = phone.completeNumber;
-                        _isValid = phone.isValidNumber();
+                        _fullPhoneNumber = normalizedCompleteNumber(phone);
+                        _isValid = isValid;
                       });
                     },
                   ),

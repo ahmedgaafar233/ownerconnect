@@ -8,6 +8,7 @@ import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../../financial/presentation/screens/charges_screen.dart';
 import '../../../support/presentation/screens/support_tickets_screen.dart';
 import '../../../support/presentation/screens/visitor_passes_screen.dart';
+import '../widgets/app_drawer.dart';
 
 /// Authenticated app shell. Only ever reached via the router when AuthBloc
 /// is in AuthenticatedState — its AppBar showing the resort name is the
@@ -35,6 +36,7 @@ class _HomeShellState extends State<HomeShell> {
     final resortName = authState is AuthenticatedState ? authState.resortName : '';
 
     return Scaffold(
+      drawer: const AppDrawer(),
       appBar: AppBar(
         title: Text(resortName.isNotEmpty ? resortName : loc.translate('app_title')),
         actions: [

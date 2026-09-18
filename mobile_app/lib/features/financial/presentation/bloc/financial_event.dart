@@ -44,3 +44,23 @@ class PaymentFailedEvent extends FinancialEvent {
   @override
   List<Object?> get props => [errorMessage];
 }
+
+class DeferChargeEvent extends FinancialEvent {
+  final int chargeId;
+  final String deferredTo;
+
+  const DeferChargeEvent({required this.chargeId, required this.deferredTo});
+
+  @override
+  List<Object?> get props => [chargeId, deferredTo];
+}
+
+class CreatePaymentPlanEvent extends FinancialEvent {
+  final int chargeId;
+  final List<Map<String, String>> installments;
+
+  const CreatePaymentPlanEvent({required this.chargeId, required this.installments});
+
+  @override
+  List<Object?> get props => [chargeId, installments];
+}

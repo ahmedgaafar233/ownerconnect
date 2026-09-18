@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/auth/presentation/bloc/auth_state.dart';
+import '../../features/auth/presentation/screens/account_link_screen.dart';
 import '../../features/auth/presentation/screens/otp_verification_screen.dart';
 import '../../features/auth/presentation/screens/pending_resort_screen.dart';
 import '../../features/auth/presentation/screens/phone_entry_screen.dart';
@@ -32,6 +33,9 @@ class AppRouter {
         if (authState is OtpSentState) {
           return location == '/otp' ? null : '/otp';
         }
+        if (authState is AccountLinkRequiredState) {
+          return location == '/link-account' ? null : '/link-account';
+        }
         if (authState is AwaitingResortAssignmentState) {
           return location == '/pending' ? null : '/pending';
         }
@@ -46,6 +50,7 @@ class AppRouter {
         GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
         GoRoute(path: '/login', builder: (_, __) => const PhoneEntryScreen()),
         GoRoute(path: '/otp', builder: (_, __) => const OtpVerificationScreen()),
+        GoRoute(path: '/link-account', builder: (_, __) => const AccountLinkScreen()),
         GoRoute(path: '/pending', builder: (_, __) => const PendingResortScreen()),
         GoRoute(path: '/home', builder: (_, __) => const HomeShell()),
       ],

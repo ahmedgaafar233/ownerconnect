@@ -32,6 +32,42 @@ class OtpSubmitted extends AuthEvent {
   List<Object?> get props => [smsCode];
 }
 
+class GoogleSignInRequested extends AuthEvent {
+  const GoogleSignInRequested();
+}
+
+class EmailSignInRequested extends AuthEvent {
+  final String email;
+  final String password;
+
+  const EmailSignInRequested({required this.email, required this.password});
+
+  @override
+  List<Object?> get props => [email, password];
+}
+
+class EmailRegisterRequested extends AuthEvent {
+  final String email;
+  final String password;
+
+  const EmailRegisterRequested({required this.email, required this.password});
+
+  @override
+  List<Object?> get props => [email, password];
+}
+
+/// Submits phone + activation code to link a Google/Email sign-in that came
+/// back as `link_required` to the owner staff already pre-provisioned.
+class AccountLinkSubmitted extends AuthEvent {
+  final String phone;
+  final String code;
+
+  const AccountLinkSubmitted({required this.phone, required this.code});
+
+  @override
+  List<Object?> get props => [phone, code];
+}
+
 /// Debug-only shortcut: skips real Firebase SMS and authenticates straight
 /// against the backend's ALLOW_DEV_AUTH_BYPASS path. Never reachable outside
 /// kDebugMode (gated in the UI, not just here).

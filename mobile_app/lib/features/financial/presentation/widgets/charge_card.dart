@@ -95,6 +95,13 @@ class ChargeCard extends StatelessWidget {
                         ),
                     ],
                   ),
+                  if (charge.activeDeferral != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      '${loc.translate('deferred_to_label')} ${charge.activeDeferral!.deferredTo}',
+                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontStyle: FontStyle.italic),
+                    ),
+                  ],
                 ],
               ),
             ),

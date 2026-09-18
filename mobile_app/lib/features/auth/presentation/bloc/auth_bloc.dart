@@ -16,6 +16,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<PhoneCodeSent>(_onPhoneCodeSent);
     on<PhoneAutoVerified>(_onPhoneAutoVerified);
     on<PhoneVerificationFailed>(_onPhoneVerificationFailed);
+    on<GoogleSignInRequested>(_onGoogleSignInRequested);
+    on<EmailSignInRequested>(_onEmailSignInRequested);
+    on<EmailRegisterRequested>(_onEmailRegisterRequested);
+    on<AccountLinkSubmitted>(_onAccountLinkSubmitted);
   }
 
   Future<void> _onAuthCheckRequested(
@@ -85,6 +89,69 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     } catch (e) {
       emit(AuthErrorState(errorMessage: e.toString()));
     }
+  }
+
+  Future<void> _onGoogleSignInRequested(
+    GoogleSignInRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoadingState());
+    try {
+      final result = await repository.signInWithGoogle();
+      await _handleAuthResult(result, emit);
+    } catch (e) {
+      emit(AuthErrorState(errorMessage: e.toString()));
+    }
+  }
+
+  Future<void> _onEmailSignInRequested(
+    EmailSignInRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoadingState());
+    try {
+      final result = await repository.signInWithEmail(email: event.email, password: event.password);
+      await _handleAuthResult(result, emit);
+    } catch (e) {
+      emit(AuthErrorState(errorMessage: e.toString()));
+    }
+  }
+
+  Future<void> _onEmailRegisterRequested(
+    EmailRegisterRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoadingState());
+    try {
+      final result = await repository.registerWithEmail(email: event.email, password: event.password);
+      await _handleAuthResult(result, emit);
+    } catch (e) {
+      emit(AuthErrorState(errorMessage: e.toString()));
+    }
+  }
+
+  Future<void> _onAccountLinkSubmitted(
+    AccountLinkSubmitted event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoadingState());
+    try {
+      final result = await repository.linkAccount(phone: event.phone, code: event.code);
+      await _handleAuthResult(result, emit);
+    } catch (e) {
+      emit(AuthErrorState(errorMessage: e.toString()));
+    }
+  }
+
+  /// Shared tail for every Google/Email sign-in path: either the backend
+  /// says this identity still needs linking, or it's authenticated and the
+  /// normal profile/resort resolution proceeds.
+  Future<void> _handleAuthResult(Map<String, dynamic> result, Emitter<AuthState> emit) async {
+    if (result['link_required'] == true) {
+      emit(AccountLinkRequiredState());
+      return;
+    }
+    await _resolveProfile(emit);
   }
 
   Future<void> _onLogoutRequested(

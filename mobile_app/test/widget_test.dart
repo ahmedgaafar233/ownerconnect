@@ -16,6 +16,7 @@ import 'package:owner_connect/features/auth/presentation/screens/phone_entry_scr
 /// project and a real platform to run on.
 class _FakeAuthRepository implements AuthRepository {
   bool loggedIn = false;
+  bool linkRequired = false;
 
   @override
   Future<bool> isLoggedIn() async => loggedIn;
@@ -26,6 +27,27 @@ class _FakeAuthRepository implements AuthRepository {
 
   @override
   Future<Map<String, dynamic>> signInWithDevBypass(String phone) async => {};
+
+  @override
+  Future<Map<String, dynamic>> signInWithGoogle() async =>
+      linkRequired ? {'link_required': true} : {'access': 'a', 'refresh': 'r'};
+
+  @override
+  Future<Map<String, dynamic>> signInWithEmail({required String email, required String password}) async =>
+      linkRequired ? {'link_required': true} : {'access': 'a', 'refresh': 'r'};
+
+  @override
+  Future<Map<String, dynamic>> registerWithEmail({required String email, required String password}) async =>
+      linkRequired ? {'link_required': true} : {'access': 'a', 'refresh': 'r'};
+
+  @override
+  Future<Map<String, dynamic>> linkAccount({required String phone, required String code}) async {
+    loggedIn = true;
+    return {'access': 'a', 'refresh': 'r'};
+  }
+
+  @override
+  Future<Map<String, dynamic>> updateFullname(String fullname) async => {};
 
   @override
   Future<Map<String, dynamic>> signInWithSmsCode({required String verificationId, required String smsCode}) async =>
@@ -77,6 +99,20 @@ void main() {
     expect(state.resortName, 'Delta Sharm');
   });
 
+  test('a first-time Google sign-in requires linking, then authenticates', () async {
+    final repository = _FakeAuthRepository()..linkRequired = true;
+    final authBloc = AuthBloc(repository: repository);
+    addTearDown(authBloc.close);
+
+    authBloc.add(const GoogleSignInRequested());
+    final linkState = await authBloc.stream.firstWhere((s) => s is AccountLinkRequiredState);
+    expect(linkState, isA<AccountLinkRequiredState>());
+
+    authBloc.add(const AccountLinkSubmitted(phone: '+201222222222', code: '123456'));
+    final authState = await authBloc.stream.firstWhere((s) => s is AuthenticatedState) as AuthenticatedState;
+    expect(authState.resortName, 'Delta Sharm');
+  });
+
   test('a session with no resort assigned yet resolves AwaitingResortAssignment', () async {
     final repository = _FakeAuthRepository()..loggedIn = true;
     final unassigned = _UnassignedFakeAuthRepository(repository);
@@ -106,6 +142,24 @@ class _UnassignedFakeAuthRepository implements AuthRepository {
 
   @override
   Future<Map<String, dynamic>> signInWithDevBypass(String phone) => _inner.signInWithDevBypass(phone);
+
+  @override
+  Future<Map<String, dynamic>> signInWithGoogle() => _inner.signInWithGoogle();
+
+  @override
+  Future<Map<String, dynamic>> signInWithEmail({required String email, required String password}) =>
+      _inner.signInWithEmail(email: email, password: password);
+
+  @override
+  Future<Map<String, dynamic>> registerWithEmail({required String email, required String password}) =>
+      _inner.registerWithEmail(email: email, password: password);
+
+  @override
+  Future<Map<String, dynamic>> linkAccount({required String phone, required String code}) =>
+      _inner.linkAccount(phone: phone, code: code);
+
+  @override
+  Future<Map<String, dynamic>> updateFullname(String fullname) => _inner.updateFullname(fullname);
 
   @override
   Future<Map<String, dynamic>> signInWithSmsCode({required String verificationId, required String smsCode}) =>

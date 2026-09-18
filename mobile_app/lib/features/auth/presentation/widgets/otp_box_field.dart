@@ -2,76 +2,115 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/theme/app_colors.dart';
 
-/// A plain 6-box OTP input — no external pin-code package, just TextFields
-/// wired to auto-advance/auto-retreat focus. Calls [onCompleted] once all
-/// boxes are filled.
+/// A 6-box OTP input. Internally this is a single hidden [TextField] that
+/// owns focus and receives every keystroke, with the boxes below just
+/// rendering its current text — auto-advance and backspace-to-previous are
+/// then "free" (there's only ever one field, so there's nothing to hand
+/// focus between). An earlier version used one TextField per box wired
+/// together with FocusNodes; on real devices that pattern needed a manual
+/// tap per box and never auto-advanced reliably (Android keyboards don't
+/// consistently re-raise focus requests fired from inside onChanged).
 class OtpBoxField extends StatefulWidget {
   final int length;
   final ValueChanged<String> onCompleted;
 
-  const OtpBoxField({Key? key, this.length = 6, required this.onCompleted}) : super(key: key);
+  const OtpBoxField({Key? key, this.length = 6, required this.onCompleted})
+      : super(key: key);
 
   @override
   State<OtpBoxField> createState() => _OtpBoxFieldState();
 }
 
 class _OtpBoxFieldState extends State<OtpBoxField> {
-  late final List<TextEditingController> _controllers;
-  late final List<FocusNode> _focusNodes;
+  late final TextEditingController _controller;
+  late final FocusNode _focusNode;
 
   @override
   void initState() {
     super.initState();
-    _controllers = List.generate(widget.length, (_) => TextEditingController());
-    _focusNodes = List.generate(widget.length, (_) => FocusNode());
+    _controller = TextEditingController();
+    _focusNode = FocusNode();
   }
 
   @override
   void dispose() {
-    for (final c in _controllers) {
-      c.dispose();
-    }
-    for (final f in _focusNodes) {
-      f.dispose();
-    }
+    _controller.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
-  void _onChanged(int index, String value) {
-    if (value.isNotEmpty && index < widget.length - 1) {
-      _focusNodes[index + 1].requestFocus();
-    }
-    if (value.isEmpty && index > 0) {
-      _focusNodes[index - 1].requestFocus();
-    }
-
-    final code = _controllers.map((c) => c.text).join();
-    if (code.length == widget.length) {
-      FocusScope.of(context).unfocus();
-      widget.onCompleted(code);
+  void _onChanged(String value) {
+    setState(() {});
+    if (value.length == widget.length) {
+      _focusNode.unfocus();
+      widget.onCompleted(value);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: List.generate(widget.length, (index) {
-        return SizedBox(
-          width: 46,
-          child: TextField(
-            controller: _controllers[index],
-            focusNode: _focusNodes[index],
-            textAlign: TextAlign.center,
-            keyboardType: TextInputType.number,
-            maxLength: 1,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration: const InputDecoration(counterText: ''),
-            onChanged: (value) => _onChanged(index, value),
-          ),
-        );
-      }),
+    // Force LTR regardless of the app's locale: this is a numeric code, not
+    // language-direction text, and in an RTL (Arabic) context the ambient
+    // Directionality would otherwise lay the boxes out right-to-left,
+    // putting the first digit typed in the rightmost box.
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _focusNode.requestFocus(),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: List.generate(widget.length, (index) {
+                final filled = index < _controller.text.length;
+                final isActive =
+                    index == _controller.text.length && _focusNode.hasFocus;
+                return Container(
+                  width: 46,
+                  height: 56,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: isActive
+                          ? AppColors.primary
+                          : AppColors.textSecondary.withOpacity(0.4),
+                      width: isActive ? 2 : 1,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    filled ? _controller.text[index] : '',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary),
+                  ),
+                );
+              }),
+            ),
+            // The real input, invisible and stretched over the boxes so any
+            // tap on the row focuses it and opens the number keyboard.
+            Opacity(
+              opacity: 0,
+              child: TextField(
+                controller: _controller,
+                focusNode: _focusNode,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                maxLength: widget.length,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: const InputDecoration(
+                    counterText: '', border: InputBorder.none),
+                onChanged: _onChanged,
+                showCursor: false,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

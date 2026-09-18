@@ -25,6 +25,10 @@ class OtpSentState extends AuthState {
   List<Object?> get props => [verificationId, phone];
 }
 
+/// A Google/Email sign-in succeeded with Firebase but isn't linked to any
+/// pre-provisioned owner yet — the app must collect phone + activation code.
+class AccountLinkRequiredState extends AuthState {}
+
 /// Signed in AND linked to a resort — the normal, fully-usable state.
 class AuthenticatedState extends AuthState {
   final int userId;

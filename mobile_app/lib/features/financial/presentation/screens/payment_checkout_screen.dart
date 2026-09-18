@@ -120,7 +120,14 @@ class _PaymentCheckoutScreenState extends State<PaymentCheckoutScreen> {
         title: Text(loc.translate('checkout_title')),
         leading: IconButton(
           icon: const Icon(Icons.close),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () {
+            // A manual close never goes through onNavigationRequest's
+            // success/fail redirect interception, so nothing else restores
+            // ChargesScreen's list underneath — without this it's left
+            // stuck on PaymentInitiatedState and renders blank.
+            context.read<FinancialBloc>().add(const FetchChargesEvent(page: 1));
+            Navigator.of(context).pop();
+          },
         ),
       ),
       body: Stack(

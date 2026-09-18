@@ -60,3 +60,16 @@ class FinancialErrorState extends FinancialState {
   @override
   List<Object?> get props => [errorMessage];
 }
+
+class ChargeDeferredState extends FinancialState {
+  final String deferredTo;
+
+  const ChargeDeferredState({required this.deferredTo});
+
+  @override
+  List<Object?> get props => [deferredTo];
+}
+
+class PaymentPlanCreatedState extends FinancialState {
+  const PaymentPlanCreatedState();
+}
