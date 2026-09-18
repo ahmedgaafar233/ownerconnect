@@ -36,11 +36,12 @@ media/
 staticfiles/
 django_errors.log
 
-# Environment variables
+# Environment variables & secrets
 .env
 .env.bak
 .venv*
 venv*
+*firebase*.json
 
 # IDEs
 .vscode/

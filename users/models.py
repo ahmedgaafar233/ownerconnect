@@ -27,6 +27,7 @@ class UserManager(BaseUserManager):
 class User(AbstractBaseUser, PermissionsMixin):
     class Role(models.TextChoices):
         SUPERADMIN = "SUPERADMIN", "Super Admin"
+        RESORT_ADMIN = "RESORT_ADMIN", "Resort Admin"
         GENERAL_MANAGER = "GENERAL_MANAGER", "General Manager"
         FINANCIAL_MANAGER = "FINANCIAL_MANAGER", "Financial Manager"
         SUPERVISOR = "SUPERVISOR", "Supervisor"
@@ -46,6 +47,7 @@ class User(AbstractBaseUser, PermissionsMixin):
             self.is_superuser = True
 
         if self.role in [
+            self.Role.RESORT_ADMIN,
             self.Role.DATA_ENTRY,
             self.Role.SUPERVISOR,
             self.Role.FINANCIAL_MANAGER,

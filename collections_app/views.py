@@ -6,7 +6,7 @@ from django.db.models import Sum, Value, DecimalField
 from django.db.models.functions import Coalesce
 from decimal import Decimal
 from django.http import HttpResponseForbidden
-from collections_app.models import Payment
+from collections_app.models import Payment, PaymentAllocation
 from billing.models import Charge
 
 
@@ -68,6 +68,12 @@ def daily_collections_view(request):
         .order_by("-paid_at")
     )
 
+    # IDOR fix: this view previously showed payments from every resort to any
+    # staff member who could reach it. Non-superusers only ever see their own
+    # resort's collections.
+    if not request.user.is_superuser:
+        payments_qs = payments_qs.filter(resort=request.user.resort)
+
     payments = payments_qs.all()
     total_amount = sum(p.total_amount for p in payments)
 
@@ -80,9 +86,12 @@ def daily_collections_view(request):
     # --------------------------------------------------------------------------
     # 2. KPI: Original Debt (Global context for this resort/year)
     # --------------------------------------------------------------------------
-    # Filter based on user's resort if available
+    # Non-superusers are always locked to their own resort. This mirrors the
+    # TenantMiddleware fix: a staff member must never be able to see another
+    # resort's totals just because their own `resort` field happens to be
+    # unset, so we filter explicitly rather than only when a resort is present.
     charge_filter = {"year": target_year, "status": Charge.Status.PUBLISHED}
-    if hasattr(request.user, "resort") and request.user.resort:
+    if not request.user.is_superuser:
         charge_filter["resort"] = request.user.resort
 
     charges_agg = (
@@ -192,16 +201,26 @@ def record_payment_view(request):
     
     # 1. Search Logic
     if search_query:
-        units = Unit.objects.filter(
+        units_qs = Unit.objects.filter(
             Q(unit_key__icontains=search_query) |
             Q(building_no__icontains=search_query) |
             Q(unit_no__icontains=search_query) |
             Q(owner_units__owner__phone__icontains=search_query)
-        ).select_related("resort").distinct()[:10]
-        
+        ).select_related("resort").distinct()
+        # Cross-tenant fix: a non-superuser must not be able to search up
+        # units belonging to another resort.
+        if not request.user.is_superuser:
+            units_qs = units_qs.filter(resort=request.user.resort)
+        units = units_qs[:10]
+
     # 2. Selection & Debt Calculation
     if unit_id:
-        selected_unit = Unit.objects.filter(id=unit_id).first()
+        selected_unit_qs = Unit.objects.filter(id=unit_id)
+        # Cross-tenant fix: block selecting/recording a payment against a unit
+        # from another resort just by guessing/passing its unit_id.
+        if not request.user.is_superuser:
+            selected_unit_qs = selected_unit_qs.filter(resort=request.user.resort)
+        selected_unit = selected_unit_qs.first()
         if selected_unit:
             # Fetch all charges that are PUBLISHED and not rejected
             charges = Charge.objects.filter(
@@ -276,8 +295,14 @@ def record_payment_view(request):
 
         if total_payment_amount > 0 and receipt_no:
             # Create Payment
-            from collections_app.models import Payment, PaymentAllocation
-            
+            # NOTE: Payment/PaymentAllocation are imported at module level.
+            # A local "from collections_app.models import Payment, ..." import
+            # used to live here — Python then treats `Payment` as a local
+            # name for the WHOLE function, so the `payment_history = Payment.
+            # objects.filter(...)` line above (which runs earlier, on every
+            # GET) raised UnboundLocalError. This is the exact traceback
+            # recorded in django_errors.log. Removing the shadowing import
+            # fixes it.
             with transaction.atomic():
                 payment = Payment.objects.create(
                     resort=selected_unit.resort,

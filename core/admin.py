@@ -78,6 +78,16 @@ class UnitAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return request.user.is_superuser
 
+    def get_queryset(self, request):
+        # Row-level fix: has_view/has_module_permission above only gate WHICH
+        # roles may open this admin at all — they never scoped rows by
+        # resort, so any staff member could browse/search every resort's
+        # units. Non-superusers now only ever see their own resort's units.
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        return qs.filter(resort=request.user.resort)
+
 
 @admin.register(OwnerUnit)
 class OwnerUnitAdmin(GeneralManagerAdminMixin, admin.ModelAdmin):
@@ -107,6 +117,14 @@ class OwnerUnitAdmin(GeneralManagerAdminMixin, admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return request.user.is_superuser
+
+    def get_queryset(self, request):
+        # Row-level fix: same gap as UnitAdmin — GM/FM could see every
+        # resort's owner-unit links, not just their own.
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        return qs.filter(unit__resort=request.user.resort)
 
     def total_debt(self, obj):
         return obj.owner.total_debt

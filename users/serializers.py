@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.utils import timezone
 from core.models import Unit, OwnerUnit
-from .models import User, ActivationCode
+from .models import User, ActivationCode, MobileDevice
 
 
 class UnitSerializer(serializers.ModelSerializer):
@@ -12,10 +12,14 @@ class UnitSerializer(serializers.ModelSerializer):
 
 class MeSerializer(serializers.ModelSerializer):
     units = serializers.SerializerMethodField()
+    resort_name = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ("id", "phone", "role", "resort", "units")
+        fields = ("id", "phone", "role", "resort", "resort_name", "units")
+
+    def get_resort_name(self, obj: User):
+        return obj.resort.name if obj.resort_id else None
 
     def get_units(self, obj: User):
         if obj.role != User.Role.OWNER:
@@ -23,6 +27,16 @@ class MeSerializer(serializers.ModelSerializer):
         unit_ids = OwnerUnit.objects.filter(owner=obj).values_list("unit_id", flat=True)
         qs = Unit.objects.filter(id__in=unit_ids, is_active=True).order_by("unit_key")
         return UnitSerializer(qs, many=True).data
+
+
+class FirebaseAuthSerializer(serializers.Serializer):
+    id_token = serializers.CharField(required=True, help_text="Firebase Auth ID Token")
+
+
+class FCMTokenRegisterSerializer(serializers.Serializer):
+    fcm_token = serializers.CharField(required=True, help_text="FCM Device Token")
+    device_id = serializers.CharField(required=False, allow_blank=True, default="")
+    os = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class ActivateSerializer(serializers.Serializer):

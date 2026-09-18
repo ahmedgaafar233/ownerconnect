@@ -16,9 +16,11 @@ class UserService:
         # Ensure atomicity if we were doing more complex things, 
         # but here it's good practice anyway.
         with transaction.atomic():
-            # Invalidate old codes? Optional, but good practice.
-            # ActivationCode.objects.filter(user=user, used_at__isnull=True).delete()
-            
+            # Invalidate all previous unused codes before issuing a new one.
+            # This ensures at most one valid code exists per user at any time,
+            # minimising the brute-force attack surface.
+            ActivationCode.objects.filter(user=user, used_at__isnull=True).delete()
+
             ActivationCode.objects.create(
                 user=user,
                 code=code,

@@ -1,22 +1,105 @@
 services:
   db:
-    image: postgres:16
+    image: postgres:16-alpine
+    restart: always
     environment:
-      POSTGRES_DB: ownerconnect
-      POSTGRES_USER: ownerconnect
-      POSTGRES_PASSWORD: ownerconnect
+      POSTGRES_DB: ${POSTGRES_DB:-ownerconnect}
+      POSTGRES_USER: ${POSTGRES_USER:-ownerconnect}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ownerconnect_secure_pass}
     ports:
       - "5432:5432"
     volumes:
       - oc_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ownerconnect} -d ${POSTGRES_DB:-ownerconnect}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
-    image: redis:7
+    image: redis:7-alpine
+    restart: always
     ports:
       - "6379:6379"
     volumes:
       - oc_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             daphne -b 0.0.0.0 -p 8000 config.asgi:application"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgres://${POSTGRES_USER:-ownerconnect}:${POSTGRES_PASSWORD:-ownerconnect_secure_pass}@db:5432/${POSTGRES_DB:-ownerconnect}
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - oc_static:/app/staticfiles
+      - oc_media:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    command: celery -A config worker -l info --concurrency=4
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgres://${POSTGRES_USER:-ownerconnect}:${POSTGRES_PASSWORD:-ownerconnect_secure_pass}@db:5432/${POSTGRES_DB:-ownerconnect}
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    command: celery -A config beat -l info
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgres://${POSTGRES_USER:-ownerconnect}:${POSTGRES_PASSWORD:-ownerconnect_secure_pass}@db:5432/${POSTGRES_DB:-ownerconnect}
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:alpine
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - oc_static:/app/staticfiles:ro
+      - oc_media:/app/media:ro
+    depends_on:
+      - web
 
 volumes:
   oc_db:
   oc_redis:
+  oc_static:
+  oc_media:

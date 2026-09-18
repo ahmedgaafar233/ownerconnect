@@ -96,7 +96,13 @@ class TicketAdmin(ReceptionAdminMixin, ModelAdmin):
         if request.user and request.user.role == 'OWNER':
             # Owners can only see their own tickets
             return qs.filter(owner=request.user)
-        return qs.select_related('owner', 'unit', 'assigned_to')
+        qs = qs.select_related('owner', 'unit', 'assigned_to')
+        # Row-level fix: ReceptionAdminMixin only gates which roles may open
+        # this admin at all — any RECEPTION/SUPERVISOR user could previously
+        # browse and reply to every resort's tickets, not just their own.
+        if request.user.is_superuser:
+            return qs
+        return qs.filter(resort=request.user.resort)
 
     def save_model(self, request, obj, form, change):
         if not obj.pk:

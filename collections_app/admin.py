@@ -86,13 +86,17 @@ class PaymentAdmin(SupervisorAdminMixin, admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         if not obj.created_by_id:
-            obj.created_by = request.user
+            obj.created_by = request.user 
         if obj.unit_id and not obj.resort_id:
             obj.resort = obj.unit.resort
         super().save_model(request, obj, form, change)
 
     def get_queryset(self, request):
+        # Row-level fix: same gap as ChargeAdmin — any supervisor/FM/GM could
+        # previously browse every resort's payments, not just their own.
         qs = super().get_queryset(request)
+        if not request.user.is_superuser:
+            qs = qs.filter(resort=request.user.resort)
         return qs.annotate(
             _allocated=Coalesce(
                 Sum("allocations__amount"),

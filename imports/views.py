@@ -30,6 +30,12 @@ class ImportWizardView(UserPassesTestMixin, View):
 
     def get(self, request):
         sources = ImportSource.objects.filter(is_active=True)
+        # Cross-tenant fix: don't list another resort's import sources to a
+        # non-superuser — that would leak the existence/naming of another
+        # resort's data-entry configuration and hand them a source_id to
+        # replay against handle_upload.
+        if not request.user.is_superuser:
+            sources = sources.filter(resort=request.user.resort)
         return render(request, self.template_name, {"step": "upload", "sources": sources})
 
     def post(self, request):
@@ -51,7 +57,15 @@ class ImportWizardView(UserPassesTestMixin, View):
             return redirect(request.path)
 
         source = get_object_or_404(ImportSource, id=source_id)
-        
+
+        # Cross-tenant fix: source_id is client-supplied. Without this check a
+        # DATA_ENTRY/SUPERVISOR user from resort A could submit a source_id
+        # belonging to resort B and have their uploaded charges created
+        # against resort B's units — a cross-tenant data-injection IDOR.
+        if not request.user.is_superuser and source.resort_id != request.user.resort_id:
+            messages.error(request, "You do not have permission to use this import source.")
+            return redirect(request.path)
+
         # Save temp file
         upload = ExcelUpload.objects.create(
             resort=source.resort,
@@ -85,7 +99,14 @@ class ImportWizardView(UserPassesTestMixin, View):
     def handle_commit(self, request):
         upload_id = request.POST.get("upload_id")
         upload = get_object_or_404(ExcelUpload, id=upload_id)
-        
+
+        # Cross-tenant fix: without this, any authorized role could commit
+        # (turn into real Charge rows) an upload_id belonging to a resort they
+        # don't work for, simply by guessing/incrementing the id.
+        if not request.user.is_superuser and upload.resort_id != request.user.resort_id:
+            messages.error(request, "You do not have permission to process this upload.")
+            return redirect("admin:imports_excelupload_changelist")
+
         year = request.POST.get("year")
         month = request.POST.get("month")
 

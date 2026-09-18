@@ -63,7 +63,12 @@ class ChargeAdmin(SupervisorAdminMixin, ModelAdmin):
         return getattr(request.user, "role", "") in ["FINANCIAL_MANAGER", "GENERAL_MANAGER"]
 
     def get_queryset(self, request):
+        # Row-level fix: SupervisorAdminMixin only gates which roles may open
+        # this admin at all — it never scoped rows by resort, so any
+        # supervisor/FM/GM could browse and export every resort's charges.
         qs = super().get_queryset(request)
+        if not request.user.is_superuser:
+            qs = qs.filter(resort=request.user.resort)
         return qs.annotate(
             _paid_total=Coalesce(
                 Sum("allocations__amount"),

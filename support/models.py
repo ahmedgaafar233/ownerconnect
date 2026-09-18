@@ -163,3 +163,46 @@ class Message(models.Model):
             pass  # System messages are created automatically
         
         super().save(*args, **kwargs)
+
+
+class VisitorPass(models.Model):
+    class PassType(models.TextChoices):
+        VISITOR = "VISITOR", "Visitor Access"
+        TENANT = "TENANT", "Tenant Access"
+        BEACH_ACCESS = "BEACH_ACCESS", "Beach Access"
+        MAINTENANCE_WORKER = "MAINTENANCE_WORKER", "Maintenance Worker"
+
+    class Status(models.TextChoices):
+        ACTIVE = "ACTIVE", "Active"
+        EXPIRED = "EXPIRED", "Expired"
+        CANCELLED = "CANCELLED", "Cancelled"
+
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="visitor_passes")
+    resort = models.ForeignKey("core.Resort", on_delete=models.CASCADE, related_name="visitor_passes")
+    unit = models.ForeignKey("core.Unit", on_delete=models.CASCADE, related_name="visitor_passes")
+
+    pass_type = models.CharField(max_length=20, choices=PassType.choices, default=PassType.VISITOR)
+    visitor_name = models.CharField(max_length=255)
+    national_id_or_passport = models.CharField(max_length=50, blank=True, default="")
+    car_plate = models.CharField(max_length=50, blank=True, default="")
+    
+    valid_from = models.DateTimeField()
+    valid_to = models.DateTimeField()
+    
+    pass_code = models.CharField(max_length=64, unique=True, editable=False)
+    status = models.CharField(max_length=15, choices=Status.choices, default=Status.ACTIVE)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def save(self, *args, **kwargs):
+        if not self.pass_code:
+            import uuid
+            self.pass_code = f"PASS-{uuid.uuid4().hex[:12].upper()}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.pass_type} - {self.visitor_name} ({self.pass_code})"
+

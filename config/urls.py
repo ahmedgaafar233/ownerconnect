@@ -6,14 +6,15 @@ from django.conf.urls.static import static
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
-from users.views import ActivateView, MeView, GenerateActivationCodeView
-from billing.views import OwnerChargeListView
+from users.views import ActivateView, MeView, GenerateActivationCodeView, FirebaseAuthView, FCMTokenRegisterView
+from billing.views import OwnerChargeListView, OwnerPaymentHistoryView
+from collections_app.api_views import InitiateOnlinePaymentAPIView, PaymentWebhookAPIView
 from core.views import unit_statement_view, unit_search_view, unit_detail_view
 from collections_app.views import daily_collections_view, record_payment_view
 
 
 urlpatterns = [
-    # Custom admin views (must be before admin.site.urls)
+    # Custom admin views
     path("admin/unit-search/", unit_search_view, name="unit_search"),
     path("admin/unit-detail/<int:unit_id>/", unit_detail_view, name="unit_detail"),
     path("admin/daily-collections/", daily_collections_view, name="daily_collections"),
@@ -26,17 +27,25 @@ urlpatterns = [
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
 
-    # Auth
+    # Auth & FCM APIs
     path("api/auth/activate/", ActivateView.as_view(), name="activate"),
+    path("api/auth/firebase/", FirebaseAuthView.as_view(), name="firebase_auth"),
+    path("api/auth/fcm-token/", FCMTokenRegisterView.as_view(), name="fcm_token_register"),
     path("api/auth/generate-code/", GenerateActivationCodeView.as_view(), name="generate_code"),
     path("api/auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
 
-    # Me + Charges
+    # Profile, Charges & Payments APIs
     path("api/me/", MeView.as_view(), name="me"),
     path("api/charges/", OwnerChargeListView.as_view(), name="owner_charges"),
+    path("api/payments/", OwnerPaymentHistoryView.as_view(), name="owner_payments"),
+    path("api/payments/initiate/", InitiateOnlinePaymentAPIView.as_view(), name="initiate_payment"),
+    path("api/payments/webhook/", PaymentWebhookAPIView.as_view(), name="payment_webhook"),
 
-    # Admin statement (print/save PDF from browser)
+    # Support & Gate/Beach Pass APIs
+    path("", include("support.urls")),
+
+    # Admin statement
     path("admin/unit-statement/<int:unit_id>/", unit_statement_view, name="unit_statement"),
 ]
 
