@@ -1,7 +1,7 @@
 from rest_framework import serializers
-from django.utils import timezone
 from core.models import Unit, OwnerUnit
 from .models import User, ActivationCode, MobileDevice
+from .services import UserService
 
 
 class UnitSerializer(serializers.ModelSerializer):
@@ -16,21 +16,32 @@ class MeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ("id", "phone", "role", "resort", "resort_name", "units")
+        fields = ("id", "phone", "fullname", "role", "resort", "resort_name", "units")
 
     def get_resort_name(self, obj: User):
         return obj.resort.name if obj.resort_id else None
 
     def get_units(self, obj: User):
-        if obj.role != User.Role.OWNER:
+        if obj.role not in (User.Role.OWNER, User.Role.TENANT):
             return []
         unit_ids = OwnerUnit.objects.filter(owner=obj).values_list("unit_id", flat=True)
         qs = Unit.objects.filter(id__in=unit_ids, is_active=True).order_by("unit_key")
         return UnitSerializer(qs, many=True).data
 
 
+class UpdateProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ("fullname",)
+
+
 class FirebaseAuthSerializer(serializers.Serializer):
     id_token = serializers.CharField(required=True, help_text="Firebase Auth ID Token")
+    # Only needed the first time a Google/Email-Password sign-in links to a
+    # staff-pre-provisioned owner (see FirebaseAuthView). Phone-OTP sign-in
+    # ignores these entirely.
+    phone = serializers.CharField(required=False, allow_blank=True, default="")
+    code = serializers.CharField(required=False, allow_blank=True, max_length=6, default="")
 
 
 class FCMTokenRegisterSerializer(serializers.Serializer):
@@ -44,27 +55,12 @@ class ActivateSerializer(serializers.Serializer):
     code = serializers.CharField(max_length=6)
 
     def validate(self, attrs):
-        phone = attrs["phone"].strip()
-        code = attrs["code"].strip()
-
         try:
-            user = User.objects.get(phone=phone, is_active=True)
-        except User.DoesNotExist:
-            raise serializers.ValidationError("Invalid phone/code")
+            activation = UserService.validate_activation_code(attrs["phone"], attrs["code"])
+        except ValueError as e:
+            raise serializers.ValidationError(str(e))
 
-        activation = (
-            ActivationCode.objects
-            .filter(user=user, code=code, used_at__isnull=True)
-            .order_by("-created_at")
-            .first()
-        )
-        if not activation:
-            raise serializers.ValidationError("Invalid phone/code")
-
-        if activation.expires_at and activation.expires_at < timezone.now():
-            raise serializers.ValidationError("Code expired")
-
-        attrs["user"] = user
+        attrs["user"] = activation.user
         attrs["activation"] = activation
         return attrs
 

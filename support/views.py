@@ -1,5 +1,6 @@
 from django.http import Http404
 from rest_framework import status, generics
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
@@ -12,6 +13,7 @@ from .serializers import (
     MessageSerializer,
     VisitorPassSerializer,
 )
+from users.models import User
 
 
 class StandardResultsSetPagination(PageNumberPagination):
@@ -29,13 +31,27 @@ class OwnerTicketListCreateView(generics.ListCreateAPIView):
             return TicketCreateSerializer
         return TicketSerializer
 
+    def create(self, request, *args, **kwargs):
+        # TicketCreateSerializer only has the 5 writable input fields (no id,
+        # status, mobile_ticket_id, created_at, ...) — the default
+        # CreateModelMixin.create() would echo that same limited shape back
+        # as the response, which crashed the mobile TicketModel.fromJson
+        # (required `id` missing from the response). Re-serialize the
+        # created instance with the full TicketSerializer instead.
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        output = TicketSerializer(serializer.instance).data
+        headers = self.get_success_headers(output)
+        return Response(output, status=status.HTTP_201_CREATED, headers=headers)
+
     def get_queryset(self):
         user = self.request.user
         tenant = getattr(self.request, "tenant", None)
 
         qs = Ticket.objects.select_related("unit", "resort", "owner", "assigned_to").prefetch_related("messages")
 
-        if user.role == "OWNER":
+        if user.role in (User.Role.OWNER, User.Role.TENANT):
             qs = qs.filter(owner=user)
         elif tenant:
             qs = qs.filter(resort=tenant)
@@ -56,6 +72,15 @@ class OwnerTicketListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         unit = serializer.validated_data["unit"]
+
+        # A Tenant only ever needs to raise maintenance requests — not
+        # accounts/reception/etc issues that are the owner's concern.
+        if (
+            self.request.user.role == User.Role.TENANT
+            and serializer.validated_data.get("category") != Ticket.Category.MAINTENANCE
+        ):
+            raise PermissionDenied("Tenants may only submit maintenance requests.")
+
         serializer.save(
             owner=self.request.user,
             resort=unit.resort,
@@ -77,7 +102,7 @@ class TicketDetailView(generics.RetrieveUpdateDestroyAPIView):
         # scoped to request.tenant (resolved by TenantMiddleware — a staff
         # member's own resort, never client-controlled); only a superuser
         # with no tenant resolved falls back to seeing everything.
-        if user.role == "OWNER":
+        if user.role in (User.Role.OWNER, User.Role.TENANT):
             return qs.filter(owner=user)
         if tenant:
             return qs.filter(resort=tenant)
@@ -97,7 +122,7 @@ class TicketMessageListCreateView(generics.ListCreateAPIView):
         tenant = getattr(self.request, "tenant", None)
 
         ticket = generics.get_object_or_404(Ticket, id=ticket_id)
-        if user.role == "OWNER":
+        if user.role in (User.Role.OWNER, User.Role.TENANT):
             if ticket.owner != user:
                 return Message.objects.none()
         elif not user.is_superuser:
@@ -115,7 +140,7 @@ class TicketMessageListCreateView(generics.ListCreateAPIView):
         tenant = getattr(self.request, "tenant", None)
         ticket = generics.get_object_or_404(Ticket, id=ticket_id)
 
-        if user.role == "OWNER":
+        if user.role in (User.Role.OWNER, User.Role.TENANT):
             if ticket.owner != user:
                 raise Http404()
         elif not user.is_superuser:
@@ -149,7 +174,7 @@ class VisitorPassListCreateView(generics.ListCreateAPIView):
 
         qs = VisitorPass.objects.select_related("unit", "resort", "owner")
 
-        if user.role == "OWNER":
+        if user.role in (User.Role.OWNER, User.Role.TENANT):
             qs = qs.filter(owner=user)
         elif tenant:
             qs = qs.filter(resort=tenant)
@@ -166,6 +191,15 @@ class VisitorPassListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         unit = serializer.validated_data["unit"]
+
+        # A Tenant only gets a pool/beach access pass, not visitor or
+        # maintenance-worker passes — those are the owner's to issue.
+        if (
+            self.request.user.role == User.Role.TENANT
+            and serializer.validated_data.get("pass_type") != VisitorPass.PassType.BEACH_ACCESS
+        ):
+            raise PermissionDenied("Tenants may only request a beach/pool access pass.")
+
         serializer.save(
             owner=self.request.user,
             resort=unit.resort,

@@ -80,7 +80,7 @@ class TicketCreateSerializer(serializers.ModelSerializer):
 
     def validate_unit(self, value):
         user = self.context["request"].user
-        if user.role == "OWNER":
+        if user.role in ("OWNER", "TENANT"):
             owns = value.owner_units.filter(owner=user).exists()
             if not owns:
                 raise serializers.ValidationError("You do not own this unit.")
@@ -113,7 +113,7 @@ class VisitorPassSerializer(serializers.ModelSerializer):
 
     def validate_unit(self, value):
         user = self.context["request"].user
-        if user.role == "OWNER":
+        if user.role in ("OWNER", "TENANT"):
             owns = value.owner_units.filter(owner=user).exists()
             if not owns:
                 raise serializers.ValidationError("You do not own this unit.")

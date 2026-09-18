@@ -6,6 +6,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
 from django.conf import settings
+from django.db import transaction
 
 from .models import User, ActivationCode, MobileDevice
 from .serializers import (
@@ -14,6 +15,7 @@ from .serializers import (
     GenerateCodeSerializer,
     FirebaseAuthSerializer,
     FCMTokenRegisterSerializer,
+    UpdateProfileSerializer,
 )
 from .services import UserService
 
@@ -39,8 +41,11 @@ class FirebaseAuthView(APIView):
         serializer = FirebaseAuthSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         id_token = serializer.validated_data["id_token"]
+        link_phone = serializer.validated_data.get("phone", "").strip()
+        link_code = serializer.validated_data.get("code", "").strip()
 
         phone_number = None
+        firebase_uid = None
 
         try:
             import firebase_admin
@@ -56,6 +61,7 @@ class FirebaseAuthView(APIView):
 
             decoded_token = fb_auth.verify_id_token(id_token)
             phone_number = decoded_token.get("phone_number")
+            firebase_uid = decoded_token.get("uid")
         except Exception as e:
             logger.warning(f"Firebase token verification failed: {e}")
             # Was gated on settings.DEBUG alone: any environment accidentally
@@ -65,42 +71,97 @@ class FirebaseAuthView(APIView):
             # which defaults to False independently of DEBUG.
             if getattr(settings, "ALLOW_DEV_AUTH_BYPASS", False) and id_token.startswith("dev_test_token_"):
                 phone_number = id_token.replace("dev_test_token_", "")
+            elif getattr(settings, "ALLOW_DEV_AUTH_BYPASS", False) and id_token.startswith("dev_test_uid_"):
+                # Simulates a Google/Email-Password sign-in (no phone claim)
+                # so the account-link branch below can be exercised without a
+                # real Firebase project — mirrors dev_test_token_ above.
+                firebase_uid = id_token.replace("dev_test_uid_", "")
             else:
                 return Response(
                     {"detail": "Invalid or expired Firebase ID token."},
                     status=status.HTTP_401_UNAUTHORIZED
                 )
 
-        if not phone_number:
-            return Response(
-                {"detail": "Firebase token does not contain a verified phone number."},
-                status=status.HTTP_400_BAD_REQUEST
+        if phone_number:
+            # Firebase already proved ownership of this phone number via SMS
+            # OTP (or the dev bypass) — unchanged from the original behavior.
+            phone_number = phone_number.strip()
+
+            user, created = User.objects.get_or_create(
+                phone=phone_number,
+                defaults={
+                    "role": User.Role.OWNER,
+                    "is_active": True,
+                }
             )
 
-        phone_number = phone_number.strip()
+            if not user.is_active:
+                return Response(
+                    {"detail": "User account is disabled."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
 
-        user, created = User.objects.get_or_create(
-            phone=phone_number,
-            defaults={
-                "role": User.Role.OWNER,
-                "is_active": True,
-            }
-        )
+            refresh = RefreshToken.for_user(user)
+            logger.info(f"User {user.phone} authenticated via Firebase phone (created={created}).")
 
-        if not user.is_active:
+            return Response({
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+                "user": MeSerializer(user).data,
+            }, status=status.HTTP_200_OK if not created else status.HTTP_201_CREATED)
+
+        # No phone claim on the token — Google or Email/Password sign-in.
+        # Neither proves which pre-provisioned owner this is (the phone isn't
+        # secret, and the email is whatever the person just typed), so a
+        # first-time sign-in must link to an existing User via phone +
+        # ActivationCode (the same mechanism ActivateView already uses).
+        # Once linked, firebase_uid alone identifies them on every return.
+        if not firebase_uid:
             return Response(
-                {"detail": "User account is disabled."},
-                status=status.HTTP_403_FORBIDDEN
+                {"detail": "Firebase token does not contain a usable identity."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        refresh = RefreshToken.for_user(user)
-        logger.info(f"User {user.phone} authenticated via Firebase (created={created}).")
+        user = User.objects.filter(firebase_uid=firebase_uid).first()
+        if user:
+            if not user.is_active:
+                return Response(
+                    {"detail": "User account is disabled."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            refresh = RefreshToken.for_user(user)
+            logger.info(f"User {user.phone} authenticated via linked Firebase account.")
+            return Response({
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+                "user": MeSerializer(user).data,
+            })
+
+        if not link_phone or not link_code:
+            # Not an error — tells the app to show the phone+code link screen.
+            return Response({"link_required": True}, status=status.HTTP_200_OK)
+
+        try:
+            activation = UserService.validate_activation_code(link_phone, link_code)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Atomic: if token issuance fails after this point, the activation
+        # code must not be silently burned with no JWT to show for it.
+        with transaction.atomic():
+            user = activation.user
+            user.firebase_uid = firebase_uid
+            user.save(update_fields=["firebase_uid"])
+            UserService.activate_user(activation)
+            refresh = RefreshToken.for_user(user)
+
+        logger.info(f"User {user.phone} linked a new Firebase account via activation code.")
 
         return Response({
             "access": str(refresh.access_token),
             "refresh": str(refresh),
             "user": MeSerializer(user).data,
-        }, status=status.HTTP_200_OK if not created else status.HTTP_201_CREATED)
+        })
 
 
 class FCMTokenRegisterView(APIView):
@@ -183,6 +244,18 @@ class MeView(APIView):
         responses={200: MeSerializer},
     )
     def get(self, request):
+        return Response(MeSerializer(request.user).data)
+
+    @extend_schema(
+        summary="Update Current User Profile",
+        description="Updates editable profile fields for the current user. Only fullname is editable today.",
+        request=UpdateProfileSerializer,
+        responses={200: MeSerializer},
+    )
+    def patch(self, request):
+        serializer = UpdateProfileSerializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
         return Response(MeSerializer(request.user).data)
 
 

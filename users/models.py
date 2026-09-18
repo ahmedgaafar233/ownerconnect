@@ -34,10 +34,17 @@ class User(AbstractBaseUser, PermissionsMixin):
         DATA_ENTRY = "DATA_ENTRY", "Data Entry"
         RECEPTION = "RECEPTION", "Reception"
         OWNER = "OWNER", "Owner"
+        TENANT = "TENANT", "Tenant"
 
     phone = models.CharField(max_length=20, unique=True)
     fullname = models.CharField(max_length=255, blank=True, null=True, verbose_name="Full Name")
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.OWNER)
+
+    # Links this phone-anchored account to a Google/Email-Password Firebase
+    # identity once the owner completes the phone+activation-code linking
+    # step (see FirebaseAuthView). Phone-OTP sign-in never needs this field —
+    # Firebase's own SMS verification is already sufficient proof there.
+    firebase_uid = models.CharField(max_length=128, unique=True, null=True, blank=True)
 
     def save(self, *args, **kwargs):
         is_new = self.pk is None
@@ -57,6 +64,8 @@ class User(AbstractBaseUser, PermissionsMixin):
             self.is_staff = True
         elif self.role == self.Role.OWNER:
             self.is_staff = False
+        elif self.role == self.Role.TENANT:
+            self.is_staff = False
 
         super().save(*args, **kwargs)
         # Sync Group based on Role
@@ -65,6 +74,7 @@ class User(AbstractBaseUser, PermissionsMixin):
             group, _ = Group.objects.get_or_create(name=self.role)
             role_group_names = [
                 self.Role.OWNER,
+                self.Role.TENANT,
                 self.Role.RECEPTION,
                 self.Role.DATA_ENTRY,
                 self.Role.SUPERVISOR,

@@ -37,10 +37,31 @@ class UserService:
         activation.save(update_fields=["used_at"])
 
     @staticmethod
-    def validate_activation_code(phone: str, code: str) -> User | None:
+    def validate_activation_code(phone: str, code: str) -> ActivationCode:
         """
-        Validates the code for a given phone number.
-        Returns the User if valid, None otherwise.
+        Validates the code for a given phone number. Shared by ActivateSerializer
+        (admin-issued code, phone-only flow) and FirebaseAuthView's account-link
+        branch (Google/Email-Password sign-in linking to a pre-provisioned owner).
+        Raises ValueError with a user-facing message on failure.
         """
-        # Logic can be moved here from Serializer if we want strict separation
-        pass
+        phone = phone.strip()
+        code = code.strip()
+
+        try:
+            user = User.objects.get(phone=phone, is_active=True)
+        except User.DoesNotExist:
+            raise ValueError("Invalid phone/code")
+
+        activation = (
+            ActivationCode.objects
+            .filter(user=user, code=code, used_at__isnull=True)
+            .order_by("-created_at")
+            .first()
+        )
+        if not activation:
+            raise ValueError("Invalid phone/code")
+
+        if activation.expires_at and activation.expires_at < timezone.now():
+            raise ValueError("Code expired")
+
+        return activation
