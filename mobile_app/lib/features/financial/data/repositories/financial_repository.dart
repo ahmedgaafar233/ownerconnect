@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import '../../../../core/constants/api_endpoints.dart';
 import '../models/charge_model.dart';
 import '../models/charge_summary_model.dart';
+import '../models/clearance_model.dart';
 import '../models/payment_model.dart';
 
 class FinancialRepository {
@@ -93,5 +94,28 @@ class FinancialRepository {
     final response = await dio.get(ApiEndpoints.payments, queryParameters: queryParams);
     final results = response.data['results'] as List;
     return results.map((e) => PaymentModel.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<ClearanceStatementModel> generateClearance({
+    required int unitId,
+    DateTime? asOfDate,
+  }) async {
+    final data = <String, dynamic>{'unit': unitId};
+    if (asOfDate != null) {
+      data['as_of_date'] =
+          '${asOfDate.year.toString().padLeft(4, '0')}-${asOfDate.month.toString().padLeft(2, '0')}-${asOfDate.day.toString().padLeft(2, '0')}';
+    }
+    final response = await dio.post(ApiEndpoints.clearanceGenerate, data: data);
+    return ClearanceStatementModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<List<ClearanceStatementModel>> getClearanceHistory({int? unitId, int page = 1}) async {
+    final queryParams = <String, dynamic>{'page': page};
+    if (unitId != null) {
+      queryParams['unit'] = unitId;
+    }
+    final response = await dio.get(ApiEndpoints.clearanceList, queryParameters: queryParams);
+    final results = response.data['results'] as List;
+    return results.map((e) => ClearanceStatementModel.fromJson(e as Map<String, dynamic>)).toList();
   }
 }

@@ -10,6 +10,8 @@ from users.views import ActivateView, MeView, GenerateActivationCodeView, Fireba
 from billing.views import (
     ChargeDeferView,
     ChargeSummaryView,
+    ClearanceGenerateView,
+    ClearanceListView,
     OwnerChargeListView,
     OwnerPaymentHistoryView,
     PaymentPlanListCreateView,
@@ -53,6 +55,8 @@ urlpatterns = [
     path("api/charges/summary/", ChargeSummaryView.as_view(), name="charges_summary"),
     path("api/charges/<int:pk>/defer/", ChargeDeferView.as_view(), name="charge_defer"),
     path("api/payment-plans/", PaymentPlanListCreateView.as_view(), name="payment_plans"),
+    path("api/clearance/generate/", ClearanceGenerateView.as_view(), name="clearance_generate"),
+    path("api/clearance/", ClearanceListView.as_view(), name="clearance_list"),
     path("api/payments/", OwnerPaymentHistoryView.as_view(), name="owner_payments"),
     path("api/payments/initiate/", InitiateOnlinePaymentAPIView.as_view(), name="initiate_payment"),
     path("api/payments/webhook/", PaymentWebhookAPIView.as_view(), name="payment_webhook"),

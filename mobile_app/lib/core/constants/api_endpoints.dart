@@ -11,6 +11,8 @@ class ApiEndpoints {
   static const String paymentPlans = "/api/payment-plans/";
   static const String payments = "/api/payments/";
   static const String initiatePayment = "/api/payments/initiate/";
+  static const String clearanceGenerate = "/api/clearance/generate/";
+  static const String clearanceList = "/api/clearance/";
 
   static const String tickets = "/api/owner/tickets/";
   static String ticketMessages(int ticketId) => "/api/owner/tickets/$ticketId/messages/";

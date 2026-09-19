@@ -2,7 +2,7 @@ from datetime import timedelta
 
 from django.utils import timezone
 from rest_framework import serializers
-from .models import Charge, PaymentDeferral, PaymentPlan, PaymentPlanInstallment
+from .models import Charge, ClearanceStatement, PaymentDeferral, PaymentPlan, PaymentPlanInstallment
 from collections_app.models import Payment, PaymentAllocation
 
 
@@ -148,3 +148,31 @@ class PaymentHistorySerializer(serializers.ModelSerializer):
             return None
         request = self.context.get("request")
         return request.build_absolute_uri(obj.receipt_pdf.url) if request else obj.receipt_pdf.url
+
+
+class ClearanceStatementSerializer(serializers.ModelSerializer):
+    unit_key = serializers.CharField(source="unit.unit_key", read_only=True)
+    pdf_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ClearanceStatement
+        fields = (
+            "id",
+            "unit",
+            "unit_key",
+            "period_start",
+            "as_of_date",
+            "total_due",
+            "total_paid",
+            "total_remaining",
+            "is_clear",
+            "pdf_url",
+            "created_at",
+        )
+        read_only_fields = fields
+
+    def get_pdf_url(self, obj):
+        if not obj.pdf:
+            return None
+        request = self.context.get("request")
+        return request.build_absolute_uri(obj.pdf.url) if request else obj.pdf.url

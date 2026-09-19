@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>مخالصة - {{ unit.unit_key }}</title>
+    <style>
+        body {
+            font-family: 'Noto Sans Arabic', 'Noto Kufi Arabic', sans-serif;
+            margin: 0;
+            padding: 40px;
+            color: #1a202c;
+            line-height: 1.5;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            border-bottom: 4px solid #1a202c;
+            padding-bottom: 20px;
+        }
+        .header h1 { margin: 0; font-size: 26px; font-weight: 900; }
+        .header p { margin: 5px 0; color: #4a5568; font-weight: 700; }
+
+        .title-badge {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .title-badge span {
+            display: inline-block;
+            background: #1a202c;
+            color: white;
+            padding: 10px 24px;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 900;
+            letter-spacing: 1px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 30px;
+        }
+        .info-box {
+            background: #f7fafc;
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid #edf2f7;
+        }
+        .info-box h3 { margin: 0 0 8px 0; font-size: 12px; color: #718096; text-transform: uppercase; }
+        .info-box p { margin: 0; font-size: 16px; font-weight: 700; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        th {
+            background: #1a202c;
+            color: white;
+            text-align: right;
+            padding: 12px;
+            font-size: 14px;
+        }
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #edf2f7;
+            font-size: 14px;
+        }
+
+        .status-box {
+            padding: 24px 25px;
+            border-radius: 16px;
+            text-align: center;
+            font-size: 20px;
+            font-weight: 900;
+            margin-bottom: 20px;
+        }
+        .status-clear {
+            background: #22543d;
+            color: white;
+        }
+        .status-outstanding {
+            background: #742a2a;
+            color: white;
+        }
+
+        .totals-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 30px;
+        }
+        .total-box {
+            background: #1a202c;
+            color: white;
+            padding: 16px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        .total-box h4 { margin: 0 0 6px 0; font-size: 12px; opacity: 0.8; }
+        .total-box p { margin: 0; font-size: 18px; font-weight: 900; }
+
+        .footer {
+            margin-top: 60px;
+            text-align: center;
+            font-size: 11px;
+            color: #a0aec0;
+            border-top: 1px solid #edf2f7;
+            padding-top: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{ resort.name }}</h1>
+        <p>مخالصة</p>
+    </div>
+
+    <div class="title-badge">
+        <span>مخالصة رقم: {{ statement.id }}</span>
+    </div>
+
+    <div class="info-grid">
+        <div class="info-box">
+            <h3>الوحدة</h3>
+            <p>{{ unit.unit_key }}</p>
+        </div>
+        <div class="info-box">
+            <h3>اسم المالك</h3>
+            <p>{{ owner_name|default:"-" }}</p>
+        </div>
+        <div class="info-box">
+            <h3>مقدم الطلب</h3>
+            <p>{{ requester_name }}</p>
+        </div>
+        <div class="info-box">
+            <h3>الفترة</h3>
+            <p>{% if statement.period_start %}{{ statement.period_start|date:"Y-m-d" }}{% else %}-{% endif %} إلى {{ statement.as_of_date|date:"Y-m-d" }}</p>
+        </div>
+    </div>
+
+    {% if statement.is_clear %}
+    <div class="status-box status-clear">الوحدة مخالصة بالكامل</div>
+    {% else %}
+    <div class="status-box status-outstanding">يوجد مبلغ مستحق: {{ statement.total_remaining|floatformat:2 }} EGP</div>
+    {% endif %}
+
+    <div class="totals-grid">
+        <div class="total-box">
+            <h4>إجمالي المستحق</h4>
+            <p>{{ statement.total_due|floatformat:2 }} EGP</p>
+        </div>
+        <div class="total-box">
+            <h4>إجمالي المدفوع</h4>
+            <p>{{ statement.total_paid|floatformat:2 }} EGP</p>
+        </div>
+        <div class="total-box">
+            <h4>المتبقي</h4>
+            <p>{{ statement.total_remaining|floatformat:2 }} EGP</p>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>البند</th>
+                <th>الفترة</th>
+                <th>المبلغ</th>
+                <th>المدفوع</th>
+                <th>المتبقي</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for charge in charges %}
+            <tr>
+                <td>{{ charge.get_type_display }}</td>
+                <td>{% if charge.month %}{{ charge.month }}/{% endif %}{{ charge.year }}</td>
+                <td>{{ charge.amount|floatformat:2 }} EGP</td>
+                <td>{{ charge.total_paid|floatformat:2 }} EGP</td>
+                <td>{{ charge.balance|floatformat:2 }} EGP</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" style="text-align:center; color:#a0aec0;">لا توجد مستحقات في هذه الفترة</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="footer">
+        هذه المخالصة تعكس رصيد الوحدة كما هو بتاريخ {{ statement.as_of_date|date:"Y-m-d" }} فقط، وقد يتغير الرصيد بعد هذا التاريخ نتيجة مستحقات أو مدفوعات جديدة. صادرة آليًا من نظام إدارة OwnerConnect.
+    </div>
+</body>
+</html>

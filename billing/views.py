@@ -13,10 +13,12 @@ from rest_framework.views import APIView
 from core.models import Notification, OwnerUnit
 from core.notifications import notify_unit_counterparts, notify_user
 from users.models import User
-from .models import Charge, PaymentDeferral, PaymentPlan
+from .models import Charge, ClearanceStatement, PaymentDeferral, PaymentPlan
+from .receipts import generate_clearance_pdf
 from collections_app.models import Payment
 from .serializers import (
     ChargeSerializer,
+    ClearanceStatementSerializer,
     PaymentDeferralSerializer,
     PaymentHistorySerializer,
     PaymentPlanRequestSerializer,
@@ -69,6 +71,20 @@ def _accessible_charges_qs(user):
     if floor_q is not None:
         qs = qs.filter(floor_q)
     return qs, unit_ids
+
+
+def _accessible_charges_qs_for_unit(user, unit_id):
+    """
+    Same accessible-charges resolution as _accessible_charges_qs, narrowed
+    to one unit — used by the clearance statement so it can never surface a
+    charge type or pre-lease period a Tenant can't otherwise see, and 404s
+    outright if the user has no OwnerUnit link to that unit at all.
+    """
+    if not OwnerUnit.objects.filter(owner=user, unit_id=unit_id).exists():
+        from django.http import Http404
+        raise Http404("Unit not found")
+    qs, _unit_ids = _accessible_charges_qs(user)
+    return qs.filter(unit_id=unit_id)
 
 
 def _accessible_charge_or_404(user, charge_id):
@@ -214,6 +230,94 @@ class ChargeSummaryView(APIView):
                 for v in by_unit.values()
             ],
         })
+
+
+class ClearanceGenerateView(APIView):
+    """
+    Generates a point-in-time "مخالصة" (clearance statement) PDF for one
+    unit: every accessible charge from the requester's lease_start_date up
+    to a chosen as_of_date (default today), confirming a zero balance or
+    listing what's still outstanding. Reuses _accessible_charges_qs_for_unit
+    so it never shows a Tenant a charge type or pre-lease period they
+    couldn't otherwise see. Unlike a payment receipt, each request creates
+    its own new stored record rather than being capped at one per lease.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        if user.role not in (User.Role.OWNER, User.Role.TENANT):
+            raise PermissionDenied("Owners only")
+
+        unit_id = request.data.get("unit")
+        if not unit_id:
+            return Response({"detail": "unit is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        today = timezone.localdate()
+        as_of_raw = request.data.get("as_of_date")
+        if as_of_raw:
+            try:
+                as_of_date = timezone.datetime.strptime(as_of_raw, "%Y-%m-%d").date()
+            except ValueError:
+                return Response({"detail": "as_of_date must be YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
+            if as_of_date > today:
+                return Response({"detail": "as_of_date cannot be in the future."}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            as_of_date = today
+
+        qs = _accessible_charges_qs_for_unit(user, unit_id)
+        qs = qs.filter(
+            Q(year__lt=as_of_date.year)
+            | Q(year=as_of_date.year, month__isnull=True)
+            | Q(year=as_of_date.year, month__lte=as_of_date.month)
+        )
+        charges = list(qs.select_related("unit").prefetch_related("allocations").order_by("year", "month", "id"))
+
+        total_due = Decimal("0.00")
+        total_paid = Decimal("0.00")
+        for charge in charges:
+            paid = sum((a.amount for a in charge.allocations.all()), Decimal("0.00"))
+            total_due += charge.amount
+            total_paid += paid
+        total_remaining = total_due - total_paid
+
+        lease_row = OwnerUnit.objects.filter(owner=user, unit_id=unit_id).first()
+
+        statement = ClearanceStatement.objects.create(
+            unit_id=unit_id,
+            requested_by=user,
+            period_start=lease_row.lease_start_date if lease_row else None,
+            as_of_date=as_of_date,
+            total_due=total_due,
+            total_paid=total_paid,
+            total_remaining=total_remaining,
+            is_clear=total_remaining <= 0,
+        )
+        generate_clearance_pdf(statement, charges)
+
+        return Response(
+            ClearanceStatementSerializer(statement, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ClearanceListView(generics.ListAPIView):
+    """History of previously generated clearance statements, so a
+    tenant/owner can find one they already generated again later."""
+    permission_classes = [IsAuthenticated]
+    serializer_class = ClearanceStatementSerializer
+    pagination_class = StandardResultsSetPagination
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.role not in (User.Role.OWNER, User.Role.TENANT):
+            raise PermissionDenied("Owners only")
+
+        qs = ClearanceStatement.objects.filter(requested_by=user).select_related("unit")
+        unit = self.request.query_params.get("unit")
+        if unit:
+            qs = qs.filter(unit_id=unit)
+        return qs
 
 
 class ChargeDeferView(APIView):

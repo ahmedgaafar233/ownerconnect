@@ -3,12 +3,13 @@ from django.core.exceptions import PermissionDenied
 from django.db.models import Sum, Value, DecimalField
 from django.db.models.functions import Coalesce
 from django.utils import timezone
+from django.utils.html import format_html
 from unfold.admin import ModelAdmin
 
 from core.models import Notification, Resort
 from core.notifications import notify_user
 from core.permissions import RoleBasedAdminMixin, SupervisorAdminMixin
-from .models import Charge, PaymentDeferral, PaymentPlan, PaymentPlanInstallment
+from .models import Charge, ClearanceStatement, PaymentDeferral, PaymentPlan, PaymentPlanInstallment
 
 
 @admin.action(description="Publish selected charges")
@@ -86,6 +87,41 @@ class ChargeAdmin(SupervisorAdminMixin, ModelAdmin):
     @admin.display(description="Remaining")
     def remaining(self, obj):
         return obj.amount - obj._paid_total
+
+
+@admin.register(ClearanceStatement)
+class ClearanceStatementAdmin(SupervisorAdminMixin, ModelAdmin):
+    """Read-only audit trail of generated clearance statements."""
+    list_display = ("id", "unit", "requested_by", "period_start", "as_of_date", "total_remaining", "is_clear", "created_at", "pdf_link")
+    list_filter = ("is_clear",)
+    search_fields = ("unit__unit_key", "requested_by__phone")
+    readonly_fields = (
+        "unit", "requested_by", "period_start", "as_of_date",
+        "total_due", "total_paid", "total_remaining", "is_clear", "pdf_link", "created_at",
+    )
+
+    @admin.display(description="PDF")
+    def pdf_link(self, obj):
+        if not obj.pdf:
+            return "—"
+        return format_html('<a href="{}" target="_blank">تحميل المخالصة</a>', obj.pdf.url)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        if request.user.is_superuser:
+            return True
+        return getattr(request.user, "role", "") in ["FINANCIAL_MANAGER", "GENERAL_MANAGER"]
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if not request.user.is_superuser:
+            qs = qs.filter(unit__resort=request.user.resort)
+        return qs
 
 
 @admin.register(PaymentDeferral)

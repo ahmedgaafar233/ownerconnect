@@ -188,6 +188,35 @@ class PaymentPlan(models.Model):
             self.save(update_fields=["status", "decided_by", "decided_at"])
 
 
+class ClearanceStatement(models.Model):
+    """
+    A point-in-time snapshot of a unit's lease balance ("مخالصة"), from the
+    requester's lease_start_date up to a chosen as_of_date. Unlike a payment
+    receipt (one immutable event, generated exactly once), a tenant/owner may
+    reasonably ask for this more than once over a lease — so each request
+    creates a new, separately-stored, never-mutated row rather than being
+    capped at one per lease.
+    """
+    unit = models.ForeignKey("core.Unit", on_delete=models.CASCADE, related_name="clearance_statements")
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="clearance_statements"
+    )
+    period_start = models.DateField(null=True, blank=True)
+    as_of_date = models.DateField()
+    total_due = models.DecimalField(max_digits=12, decimal_places=2)
+    total_paid = models.DecimalField(max_digits=12, decimal_places=2)
+    total_remaining = models.DecimalField(max_digits=12, decimal_places=2)
+    is_clear = models.BooleanField(default=False)
+    pdf = models.FileField(upload_to="clearance/%Y/%m/", null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.unit.unit_key} - as of {self.as_of_date} ({self.total_remaining})"
+
+
 class PaymentPlanInstallment(models.Model):
     plan = models.ForeignKey(PaymentPlan, on_delete=models.CASCADE, related_name="installments")
     due_date = models.DateField()
