@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../data/models/charge_model.dart';
+import '../../data/models/payment_model.dart';
 
 abstract class FinancialState extends Equatable {
   const FinancialState();
@@ -72,4 +73,35 @@ class ChargeDeferredState extends FinancialState {
 
 class PaymentPlanCreatedState extends FinancialState {
   const PaymentPlanCreatedState();
+}
+
+class PaymentHistoryLoadedState extends FinancialState {
+  final List<PaymentModel> payments;
+  final bool hasReachedMax;
+  final int currentPage;
+  final bool isFetchingMore;
+
+  const PaymentHistoryLoadedState({
+    required this.payments,
+    required this.hasReachedMax,
+    this.currentPage = 1,
+    this.isFetchingMore = false,
+  });
+
+  PaymentHistoryLoadedState copyWith({
+    List<PaymentModel>? payments,
+    bool? hasReachedMax,
+    int? currentPage,
+    bool? isFetchingMore,
+  }) {
+    return PaymentHistoryLoadedState(
+      payments: payments ?? this.payments,
+      hasReachedMax: hasReachedMax ?? this.hasReachedMax,
+      currentPage: currentPage ?? this.currentPage,
+      isFetchingMore: isFetchingMore ?? this.isFetchingMore,
+    );
+  }
+
+  @override
+  List<Object?> get props => [payments, hasReachedMax, currentPage, isFetchingMore];
 }

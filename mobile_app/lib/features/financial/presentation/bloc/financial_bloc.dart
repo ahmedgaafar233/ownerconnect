@@ -13,6 +13,7 @@ class FinancialBloc extends Bloc<FinancialEvent, FinancialState> {
     on<PaymentFailedEvent>(_onPaymentFailed);
     on<DeferChargeEvent>(_onDeferCharge);
     on<CreatePaymentPlanEvent>(_onCreatePaymentPlan);
+    on<FetchPaymentHistoryEvent>(_onFetchPaymentHistory);
   }
 
   Future<void> _onFetchCharges(
@@ -128,5 +129,46 @@ class FinancialBloc extends Bloc<FinancialEvent, FinancialState> {
       emit(FinancialErrorState(errorMessage: e.toString()));
     }
     add(const FetchChargesEvent(page: 1));
+  }
+
+  Future<void> _onFetchPaymentHistory(
+    FetchPaymentHistoryEvent event,
+    Emitter<FinancialState> emit,
+  ) async {
+    final currentState = state;
+
+    if (event.page == 1) {
+      emit(FinancialLoadingState());
+      try {
+        final payments = await repository.getPaymentHistory(page: 1);
+        emit(PaymentHistoryLoadedState(
+          payments: payments,
+          hasReachedMax: payments.length < 15,
+          currentPage: 1,
+          isFetchingMore: false,
+        ));
+      } catch (e) {
+        emit(FinancialErrorState(errorMessage: e.toString()));
+      }
+    } else if (currentState is PaymentHistoryLoadedState &&
+        !currentState.hasReachedMax &&
+        !currentState.isFetchingMore) {
+      emit(currentState.copyWith(isFetchingMore: true));
+      try {
+        final newPayments = await repository.getPaymentHistory(page: event.page);
+        if (newPayments.isEmpty) {
+          emit(currentState.copyWith(hasReachedMax: true, isFetchingMore: false));
+        } else {
+          emit(PaymentHistoryLoadedState(
+            payments: List.from(currentState.payments)..addAll(newPayments),
+            hasReachedMax: newPayments.length < 15,
+            currentPage: event.page,
+            isFetchingMore: false,
+          ));
+        }
+      } catch (e) {
+        emit(currentState.copyWith(isFetchingMore: false));
+      }
+    }
   }
 }

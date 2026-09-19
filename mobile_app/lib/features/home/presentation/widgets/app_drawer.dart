@@ -5,6 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_localizations.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
+import '../../../financial/presentation/screens/payment_history_screen.dart';
 import '../../../profile/presentation/screens/about_screen.dart';
 import '../../../profile/presentation/screens/contact_us_screen.dart';
 import '../../../profile/presentation/screens/payment_methods_screen.dart';
@@ -67,6 +68,11 @@ class AppDrawer extends StatelessWidget {
               leading: const Icon(Icons.credit_card_outlined),
               title: Text(loc.translate('payment_methods_title')),
               onTap: () => _push(context, const PaymentMethodsScreen()),
+            ),
+            ListTile(
+              leading: const Icon(Icons.receipt_long_outlined),
+              title: Text(loc.translate('payment_history_title')),
+              onTap: () => _push(context, const PaymentHistoryScreen()),
             ),
             ListTile(
               leading: const Icon(Icons.mail_outline),

@@ -64,3 +64,12 @@ class CreatePaymentPlanEvent extends FinancialEvent {
   @override
   List<Object?> get props => [chargeId, installments];
 }
+
+class FetchPaymentHistoryEvent extends FinancialEvent {
+  final int page;
+
+  const FetchPaymentHistoryEvent({this.page = 1});
+
+  @override
+  List<Object?> get props => [page];
+}

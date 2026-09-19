@@ -108,6 +108,10 @@ class AppLocalizations {
       'notifications_title': 'Notifications',
       'mark_all_read': 'Mark all read',
       'no_notifications_yet': 'No notifications yet',
+      'payment_history_title': 'Payment History',
+      'download_receipt': 'Download Receipt',
+      'no_payments_yet': 'No payments found',
+      'receipt_no_label': 'Receipt No.',
     },
     'ar': {
       'app_title': 'أونر كونكت',
@@ -206,6 +210,10 @@ class AppLocalizations {
       'notifications_title': 'الإشعارات',
       'mark_all_read': 'تحديد الكل كمقروء',
       'no_notifications_yet': 'لا توجد إشعارات حتى الآن',
+      'payment_history_title': 'سجل المدفوعات',
+      'download_receipt': 'تحميل الإيصال',
+      'no_payments_yet': 'لا توجد مدفوعات',
+      'receipt_no_label': 'رقم الإيصال',
     },
   };
 

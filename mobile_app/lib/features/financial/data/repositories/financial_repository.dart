@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import '../../../../core/constants/api_endpoints.dart';
 import '../models/charge_model.dart';
+import '../models/payment_model.dart';
 
 class FinancialRepository {
   final Dio dio;
@@ -61,5 +62,11 @@ class FinancialRepository {
     final response = await dio.get(ApiEndpoints.paymentPlans);
     final results = response.data['results'] as List;
     return results.cast<Map<String, dynamic>>();
+  }
+
+  Future<List<PaymentModel>> getPaymentHistory({int page = 1}) async {
+    final response = await dio.get(ApiEndpoints.payments, queryParameters: {'page': page});
+    final results = response.data['results'] as List;
+    return results.map((e) => PaymentModel.fromJson(e as Map<String, dynamic>)).toList();
   }
 }
