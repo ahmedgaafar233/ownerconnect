@@ -30,9 +30,34 @@ class PaymentOptionsScreen extends StatefulWidget {
 }
 
 class _PaymentOptionsScreenState extends State<PaymentOptionsScreen> {
+  bool _isPartial = false;
+  final _partialAmountController = TextEditingController();
+  DateTime? _remainingDate;
+
+  // _payAtOffice now dispatches one CreateTicketEvent per distinct unit —
+  // the BlocListener below reacts to every TicketCreatedState it sees, so
+  // without this counter it would pop the screen once per ticket and crash
+  // go_router on the second pop (confirmed on-device). Only pop once every
+  // dispatched ticket has actually been created.
+  int _pendingOfficeTickets = 0;
+
   double get _total => widget.selectedCharges.fold(0, (sum, c) => sum + c.remainingBalance);
 
   bool get _singleCharge => widget.selectedCharges.length == 1;
+
+  Map<String, double> get _byUnit {
+    final map = <String, double>{};
+    for (final c in widget.selectedCharges) {
+      map[c.unitKey] = (map[c.unitKey] ?? 0) + c.remainingBalance;
+    }
+    return map;
+  }
+
+  @override
+  void dispose() {
+    _partialAmountController.dispose();
+    super.dispose();
+  }
 
   Future<void> _pickDeferDate(BuildContext context) async {
     final today = DateTime.now();
@@ -80,14 +105,76 @@ class _PaymentOptionsScreenState extends State<PaymentOptionsScreen> {
     if (picked == null || !context.mounted) return;
 
     final dateStr = '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
-    context.read<SupportBloc>().add(
-          CreateTicketEvent(
-            unitId: charge.unit,
-            category: 'ACCOUNTS',
-            priority: 'MEDIUM',
-            subject: loc.translate('pay_at_office_subject'),
-            description:
-                '${loc.translate('pay_at_office_description')} $dateStr — ${loc.translate('amount')}: ${_total.toStringAsFixed(2)} EGP.',
+
+    // One ticket per distinct unit involved — the accounts office needs a
+    // separate visit line per unit even when it's one combined visit, and
+    // SupportBloc is provided app-wide so these keep processing even after
+    // this screen pops once every dispatched ticket has been created.
+    final byUnitId = <int, List<ChargeModel>>{};
+    for (final c in widget.selectedCharges) {
+      byUnitId.putIfAbsent(c.unit, () => []).add(c);
+    }
+    _pendingOfficeTickets = byUnitId.length;
+    for (final entry in byUnitId.entries) {
+      final unitTotal = entry.value.fold<double>(0, (sum, c) => sum + c.remainingBalance);
+      context.read<SupportBloc>().add(
+            CreateTicketEvent(
+              unitId: entry.key,
+              category: 'ACCOUNTS',
+              priority: 'MEDIUM',
+              subject: loc.translate('pay_at_office_subject'),
+              description:
+                  '${loc.translate('pay_at_office_description')} $dateStr — ${loc.translate('amount')}: ${unitTotal.toStringAsFixed(2)} EGP.',
+            ),
+          );
+    }
+  }
+
+  Future<void> _pickRemainingDueDate(BuildContext context) async {
+    final today = DateTime.now();
+    final picked = await showHighlightedDatePicker(
+      context: context,
+      initialDate: today.add(const Duration(days: 1)),
+      firstDate: today.add(const Duration(days: 1)),
+      lastDate: today.add(const Duration(days: 5)),
+    );
+    if (picked == null) return;
+    setState(() => _remainingDate = picked);
+  }
+
+  void _payOnline(BuildContext context) {
+    final loc = AppLocalizations.of(context);
+    if (!_isPartial) {
+      context.read<FinancialBloc>().add(
+            InitiatePaymentEvent(chargeIds: widget.selectedCharges.map((c) => c.id).toList()),
+          );
+      return;
+    }
+
+    final amount = double.tryParse(_partialAmountController.text.trim());
+    if (amount == null || amount <= 0 || amount > _total) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(loc.translate('pay_partial_invalid_amount')), backgroundColor: AppColors.error),
+      );
+      return;
+    }
+    String? remainingDueDate;
+    if (amount < _total) {
+      if (_remainingDate == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(loc.translate('pay_partial_date_required')), backgroundColor: AppColors.error),
+        );
+        return;
+      }
+      remainingDueDate =
+          '${_remainingDate!.year.toString().padLeft(4, '0')}-${_remainingDate!.month.toString().padLeft(2, '0')}-${_remainingDate!.day.toString().padLeft(2, '0')}';
+    }
+
+    context.read<FinancialBloc>().add(
+          InitiatePaymentEvent(
+            chargeIds: widget.selectedCharges.map((c) => c.id).toList(),
+            payAmount: amount,
+            remainingDueDate: remainingDueDate,
           ),
         );
   }
@@ -133,10 +220,15 @@ class _PaymentOptionsScreenState extends State<PaymentOptionsScreen> {
           BlocListener<SupportBloc, SupportState>(
             listener: (context, state) {
               if (state is TicketCreatedState) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(loc.translate('pay_at_office_confirmed'))),
-                );
-                Navigator.of(context).pop();
+                if (_pendingOfficeTickets > 0) {
+                  _pendingOfficeTickets -= 1;
+                }
+                if (_pendingOfficeTickets == 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(loc.translate('pay_at_office_confirmed'))),
+                  );
+                  Navigator.of(context).pop();
+                }
               } else if (state is SupportErrorState) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text(state.message), backgroundColor: AppColors.error),
@@ -154,14 +246,62 @@ class _PaymentOptionsScreenState extends State<PaymentOptionsScreen> {
                 '${loc.translate('amount')}: ${_total.toStringAsFixed(2)} EGP',
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
               ),
+              if (_byUnit.length > 1) ...[
+                const SizedBox(height: 8),
+                Text(
+                  loc.translate('per_unit_selection_note'),
+                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 8),
+                ..._byUnit.entries.map(
+                  (e) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(e.key, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                        Text('${e.value.toStringAsFixed(2)} EGP', style: const TextStyle(fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _isPartial,
+                onChanged: (v) => setState(() => _isPartial = v),
+                title: Text(loc.translate('pay_partial_toggle'), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              ),
+              if (_isPartial) ...[
+                TextField(
+                  controller: _partialAmountController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(labelText: loc.translate('pay_partial_amount_label')),
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: () => _pickRemainingDueDate(context),
+                  icon: const Icon(Icons.calendar_month_outlined),
+                  label: Text(
+                    _remainingDate != null
+                        ? '${loc.translate('remaining_due_date_label')}: ${_remainingDate!.year}-${_remainingDate!.month.toString().padLeft(2, '0')}-${_remainingDate!.day.toString().padLeft(2, '0')}'
+                        : loc.translate('remaining_due_date_label'),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  loc.translate('pay_partial_cap_note'),
+                  style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                ),
+              ],
               const SizedBox(height: 24),
               _OptionTile(
                 icon: Icons.language,
                 title: loc.translate('pay_online_option'),
                 subtitle: loc.translate('pay_online_subtitle'),
-                onTap: () => context.read<FinancialBloc>().add(
-                      InitiatePaymentEvent(chargeIds: widget.selectedCharges.map((c) => c.id).toList()),
-                    ),
+                onTap: () => _payOnline(context),
               ),
               if (_singleCharge) ...[
                 _OptionTile(

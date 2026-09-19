@@ -30,7 +30,9 @@ class PaymentSession(models.Model):
         related_name="payment_sessions",
     )
 
-    # The resort and unit this payment is for
+    # The resort this payment is for — always set. A session spanning
+    # multiple units (combined payment) leaves `unit` null; a single-unit
+    # session still populates it as before.
     resort = models.ForeignKey(
         "core.Resort",
         on_delete=models.CASCADE,
@@ -40,6 +42,8 @@ class PaymentSession(models.Model):
         "core.Unit",
         on_delete=models.CASCADE,
         related_name="payment_sessions",
+        null=True,
+        blank=True,
     )
 
     # Exact amount computed server-side at session creation — webhook must use THIS
@@ -54,6 +58,12 @@ class PaymentSession(models.Model):
         db_column="charge_ids_json",
         help_text="JSON array of billing.Charge PKs committed to this session.",
     )
+
+    # Set only when `amount` is less than the full due across the selected
+    # charges — the date the owner committed to pay the rest by. The
+    # webhook auto-creates a PaymentDeferral to this date for whatever
+    # charges this payment didn't fully cover.
+    remaining_due_date = models.DateField(null=True, blank=True)
 
     status = models.CharField(
         max_length=10,

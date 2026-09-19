@@ -47,11 +47,19 @@ class FinancialRepository {
     return ChargeSummaryModel.fromJson(response.data as Map<String, dynamic>);
   }
 
-  Future<Map<String, dynamic>> initiateOnlinePayment(List<int> chargeIds) async {
-    final response = await dio.post(
-      ApiEndpoints.initiatePayment,
-      data: {'charge_ids': chargeIds},
-    );
+  Future<Map<String, dynamic>> initiateOnlinePayment(
+    List<int> chargeIds, {
+    double? payAmount,
+    String? remainingDueDate,
+  }) async {
+    final data = <String, dynamic>{'charge_ids': chargeIds};
+    if (payAmount != null) {
+      data['pay_amount'] = payAmount.toStringAsFixed(2);
+    }
+    if (remainingDueDate != null) {
+      data['remaining_due_date'] = remainingDueDate;
+    }
+    final response = await dio.post(ApiEndpoints.initiatePayment, data: data);
     return response.data as Map<String, dynamic>;
   }
 

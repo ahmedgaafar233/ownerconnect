@@ -102,7 +102,11 @@ class FinancialBloc extends Bloc<FinancialEvent, FinancialState> {
     final currentState = state;
     emit(FinancialLoadingState(summary: state.summary));
     try {
-      final session = await repository.initiateOnlinePayment(event.chargeIds);
+      final session = await repository.initiateOnlinePayment(
+        event.chargeIds,
+        payAmount: event.payAmount,
+        remainingDueDate: event.remainingDueDate,
+      );
       emit(PaymentInitiatedState(paymentSession: session, summary: state.summary));
     } catch (e) {
       emit(FinancialErrorState(errorMessage: e.toString(), summary: state.summary));

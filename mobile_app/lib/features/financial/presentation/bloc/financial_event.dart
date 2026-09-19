@@ -26,11 +26,13 @@ class FetchChargeSummaryEvent extends FinancialEvent {
 
 class InitiatePaymentEvent extends FinancialEvent {
   final List<int> chargeIds;
+  final double? payAmount;
+  final String? remainingDueDate;
 
-  const InitiatePaymentEvent({required this.chargeIds});
+  const InitiatePaymentEvent({required this.chargeIds, this.payAmount, this.remainingDueDate});
 
   @override
-  List<Object?> get props => [chargeIds];
+  List<Object?> get props => [chargeIds, payAmount, remainingDueDate];
 }
 
 class PaymentCompletedEvent extends FinancialEvent {
