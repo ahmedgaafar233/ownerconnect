@@ -36,9 +36,9 @@
     </div>
 
     {% if statement.is_clear %}
-    <div class="status-box status-clear">Unit Fully Cleared — No Outstanding Balance<br>الوحدة خالصة تماماً - لا يوجد أي متأخرات</div>
+    <div class="status-box status-clear">No Outstanding Dues — Account Settled in Full<br>لا توجد مستحقات مالية على الوحدة حتى تاريخه</div>
     {% else %}
-    <div class="status-box status-outstanding">Outstanding Amount / يوجد مبلغ مستحق: {{ statement.total_remaining|floatformat:2 }} EGP</div>
+    <div class="status-box status-outstanding">Outstanding Balance / الرصيد المستحق: {{ statement.total_remaining|floatformat:2 }} EGP</div>
     {% endif %}
 
     <div class="totals-grid">
