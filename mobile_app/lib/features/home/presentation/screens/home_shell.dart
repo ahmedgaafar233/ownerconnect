@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/utils/app_localizations.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_event.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../../financial/presentation/screens/charges_screen.dart';
+import '../../../notifications/presentation/bloc/notification_bloc.dart';
+import '../../../notifications/presentation/bloc/notification_event.dart';
 import '../../../support/presentation/screens/support_tickets_screen.dart';
 import '../../../support/presentation/screens/visitor_passes_screen.dart';
 import '../widgets/app_drawer.dart';
@@ -30,16 +33,32 @@ class _HomeShellState extends State<HomeShell> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    context.read<NotificationBloc>().add(const FetchUnreadCountEvent());
+  }
+
+  @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
     final authState = context.watch<AuthBloc>().state;
     final resortName = authState is AuthenticatedState ? authState.resortName : '';
+    final unreadCount = context.watch<NotificationBloc>().state.unreadCount;
 
     return Scaffold(
       drawer: const AppDrawer(),
       appBar: AppBar(
         title: Text(resortName.isNotEmpty ? resortName : loc.translate('app_title')),
         actions: [
+          IconButton(
+            icon: Badge(
+              label: Text('$unreadCount'),
+              isLabelVisible: unreadCount > 0,
+              child: const Icon(Icons.notifications_outlined),
+            ),
+            tooltip: loc.translate('notifications_title'),
+            onPressed: () => context.push('/notifications'),
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: loc.translate('logout'),

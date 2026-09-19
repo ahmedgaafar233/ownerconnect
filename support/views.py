@@ -6,6 +6,8 @@ from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 
+from core.models import Notification
+from core.notifications import notify_user
 from .models import Ticket, Message, VisitorPass
 from .serializers import (
     TicketSerializer,
@@ -151,16 +153,13 @@ class TicketMessageListCreateView(generics.ListCreateAPIView):
 
         # Notify ticket owner if reply is posted by staff/support
         if self.request.user != ticket.owner:
-            try:
-                from core.tasks import send_fcm_notification_task
-                send_fcm_notification_task.delay(
-                    user_id=ticket.owner_id,
-                    title=f"Support Reply: {ticket.subject[:30]}",
-                    body=msg.text[:100] if msg.text else "Staff replied to your support request.",
-                    data={"type": "ticket_reply", "ticket_id": ticket.id},
-                )
-            except Exception as task_err:
-                pass
+            notify_user(
+                ticket.owner,
+                title=f"Support Reply: {ticket.subject[:30]}",
+                body=msg.text[:100] if msg.text else "Staff replied to your support request.",
+                notif_type=Notification.Type.TICKET_REPLY,
+                data={"type": "ticket_reply", "ticket_id": ticket.id},
+            )
 
 
 class VisitorPassListCreateView(generics.ListCreateAPIView):

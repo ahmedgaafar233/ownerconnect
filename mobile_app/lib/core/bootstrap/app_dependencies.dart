@@ -6,6 +6,7 @@ import '../../firebase_options.dart';
 import '../../features/auth/data/repositories/firebase_auth_repository.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/financial/data/repositories/financial_repository.dart';
+import '../../features/notifications/data/repositories/notification_repository.dart';
 import '../../features/support/data/repositories/support_repository.dart';
 import '../localization/locale_cubit.dart';
 import '../network/dio_client.dart';
@@ -17,12 +18,14 @@ class AppDependencies {
   final AuthBloc authBloc;
   final FinancialRepository financialRepository;
   final SupportRepository supportRepository;
+  final NotificationRepository notificationRepository;
   final LocaleCubit localeCubit;
 
   const AppDependencies({
     required this.authBloc,
     required this.financialRepository,
     required this.supportRepository,
+    required this.notificationRepository,
     required this.localeCubit,
   });
 
@@ -64,6 +67,7 @@ class AppDependencies {
       localeCubit: localeCubit,
       financialRepository: FinancialRepository(dio: dioClient.dio),
       supportRepository: SupportRepository(dio: dioClient.dio),
+      notificationRepository: NotificationRepository(dio: dioClient.dio),
     );
   }
 }

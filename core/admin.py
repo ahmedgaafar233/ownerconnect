@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.db.models import Sum, Q, F
 from django.utils.translation import gettext_lazy as _
-from .models import Resort, Unit, OwnerUnit
+from .models import Resort, Unit, OwnerUnit, Notification
 from core.permissions import GeneralManagerAdminMixin
 
 
@@ -92,7 +92,7 @@ class UnitAdmin(admin.ModelAdmin):
 @admin.register(OwnerUnit)
 class OwnerUnitAdmin(GeneralManagerAdminMixin, admin.ModelAdmin):
     """GM+ can view; only superuser can add/change/delete."""
-    list_display = ("id", "owner", "unit", "total_debt", "total_paid", "remaining_balance", "created_at")
+    list_display = ("id", "owner", "unit", "lease_start_date", "total_debt", "total_paid", "remaining_balance", "created_at")
     list_filter = ("unit__resort",)
     search_fields = ("owner__phone", "unit__unit_key")
     autocomplete_fields = ("owner", "unit")
@@ -134,3 +134,36 @@ class OwnerUnitAdmin(GeneralManagerAdminMixin, admin.ModelAdmin):
 
     def remaining_balance(self, obj):
         return obj.owner.remaining_balance
+
+
+@admin.register(Notification)
+class NotificationAdmin(GeneralManagerAdminMixin, admin.ModelAdmin):
+    """Read-only audit log of what was sent — GM/FM can view for debugging; only superuser can delete stale rows."""
+    list_display = ("id", "user", "type", "title", "is_read", "created_at")
+    list_filter = ("type", "is_read")
+    search_fields = ("user__phone", "title", "body")
+
+    def has_view_permission(self, request, obj=None):
+        if request.user.is_superuser:
+            return True
+        return getattr(request.user, "role", "") in ["GENERAL_MANAGER", "FINANCIAL_MANAGER"]
+
+    def has_module_permission(self, request):
+        if request.user.is_superuser:
+            return True
+        return getattr(request.user, "role", "") in ["GENERAL_MANAGER", "FINANCIAL_MANAGER"]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        return qs.filter(resort=request.user.resort)

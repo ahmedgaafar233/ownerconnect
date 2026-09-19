@@ -105,6 +105,9 @@ class AppLocalizations {
       'contact_us_message_hint': 'Your message',
       'about_version': 'Version 1.0.0',
       'about_description': 'OwnerConnect helps you manage your unit, charges, and requests at your resort — all in one place.',
+      'notifications_title': 'Notifications',
+      'mark_all_read': 'Mark all read',
+      'no_notifications_yet': 'No notifications yet',
     },
     'ar': {
       'app_title': 'أونر كونكت',
@@ -200,6 +203,9 @@ class AppLocalizations {
       'contact_us_message_hint': 'رسالتك',
       'about_version': 'الإصدار 1.0.0',
       'about_description': 'أونر كونكت بيساعدك تدير وحدتك وفواتيرك وطلباتك في القرية — كل حاجة في مكان واحد.',
+      'notifications_title': 'الإشعارات',
+      'mark_all_read': 'تحديد الكل كمقروء',
+      'no_notifications_yet': 'لا توجد إشعارات حتى الآن',
     },
   };
 

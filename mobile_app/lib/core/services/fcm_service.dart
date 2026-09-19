@@ -16,7 +16,11 @@ class FcmService {
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final Dio _dio;
 
-  FcmService(this._dio);
+  /// Invoked on every foreground push so the caller can refresh e.g. the
+  /// notifications bell badge while the app is open.
+  final void Function(RemoteMessage message)? onForegroundMessage;
+
+  FcmService(this._dio, {this.onForegroundMessage});
 
   /// Initializes FCM permissions, handlers, and token registration.
   Future<void> initialize() async {
@@ -42,6 +46,7 @@ class FcmService {
       if (kDebugMode) {
         print('Foreground notification received: ${message.notification?.title}');
       }
+      onForegroundMessage?.call(message);
     });
 
     // 4. Token Refresh Listener

@@ -8,6 +8,7 @@ import '../../features/auth/presentation/screens/pending_resort_screen.dart';
 import '../../features/auth/presentation/screens/phone_entry_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/home/presentation/screens/home_shell.dart';
+import '../../features/notifications/presentation/screens/notifications_screen.dart';
 import 'go_router_refresh_stream.dart';
 
 /// The single tenant-lock gate for the whole app: every route decision comes
@@ -40,7 +41,11 @@ class AppRouter {
           return location == '/pending' ? null : '/pending';
         }
         if (authState is AuthenticatedState) {
-          return location == '/home' ? null : '/home';
+          // Only bounce away from the pre-auth screens — any other route
+          // (e.g. /notifications) is a normal in-app destination and must
+          // not be redirected back to /home on every navigation.
+          const preAuthLocations = ['/splash', '/login', '/otp', '/link-account', '/pending'];
+          return preAuthLocations.contains(location) ? '/home' : null;
         }
         // AuthErrorState: stay put, the current screen already shows the
         // error via its own BlocConsumer listener.
@@ -53,6 +58,7 @@ class AppRouter {
         GoRoute(path: '/link-account', builder: (_, __) => const AccountLinkScreen()),
         GoRoute(path: '/pending', builder: (_, __) => const PendingResortScreen()),
         GoRoute(path: '/home', builder: (_, __) => const HomeShell()),
+        GoRoute(path: '/notifications', builder: (_, __) => const NotificationsScreen()),
       ],
     );
   }

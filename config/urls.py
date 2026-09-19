@@ -10,6 +10,12 @@ from users.views import ActivateView, MeView, GenerateActivationCodeView, Fireba
 from billing.views import ChargeDeferView, OwnerChargeListView, OwnerPaymentHistoryView, PaymentPlanListCreateView
 from collections_app.api_views import InitiateOnlinePaymentAPIView, PaymentWebhookAPIView
 from core.views import unit_statement_view, unit_search_view, unit_detail_view
+from core.notification_views import (
+    NotificationListView,
+    NotificationMarkAllReadView,
+    NotificationMarkReadView,
+    NotificationUnreadCountView,
+)
 from collections_app.views import daily_collections_view, record_payment_view
 
 
@@ -46,6 +52,12 @@ urlpatterns = [
 
     # Support & Gate/Beach Pass APIs
     path("", include("support.urls")),
+
+    # Notifications API
+    path("api/notifications/", NotificationListView.as_view(), name="notification_list"),
+    path("api/notifications/<int:pk>/read/", NotificationMarkReadView.as_view(), name="notification_mark_read"),
+    path("api/notifications/mark-all-read/", NotificationMarkAllReadView.as_view(), name="notification_mark_all_read"),
+    path("api/notifications/unread-count/", NotificationUnreadCountView.as_view(), name="notification_unread_count"),
 
     # Admin statement
     path("admin/unit-statement/<int:unit_id>/", unit_statement_view, name="unit_statement"),

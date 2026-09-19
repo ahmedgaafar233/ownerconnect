@@ -38,6 +38,10 @@ class OwnerUnit(models.Model):
         on_delete=models.CASCADE,
         related_name="owner_units"
     )
+    # Only meaningful for a Tenant row today: a Tenant must never see/act on
+    # charges dated before their own move-in. Left null for existing/Owner
+    # rows so nothing is retroactively restricted until staff back-fill it.
+    lease_start_date = models.DateField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -45,3 +49,39 @@ class OwnerUnit(models.Model):
 
     def __str__(self):
         return f"{self.owner.phone} -> {self.unit.unit_key}"
+
+
+class Notification(models.Model):
+    class Type(models.TextChoices):
+        PAYMENT_SUCCESS = "PAYMENT_SUCCESS", "Payment Successful"
+        PAYMENT_DEFERRED = "PAYMENT_DEFERRED", "Payment Deferred"
+        PAYMENT_PLAN_DECIDED = "PAYMENT_PLAN_DECIDED", "Payment Plan Decided"
+        TICKET_REPLY = "TICKET_REPLY", "Support Reply"
+        UNIT_ACTIVITY = "UNIT_ACTIVITY", "Unit Activity"
+        OTHER = "OTHER", "Other"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="notifications",
+    )
+    resort = models.ForeignKey(
+        Resort,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="notifications",
+    )
+    type = models.CharField(max_length=30, choices=Type.choices, default=Type.OTHER)
+    title = models.CharField(max_length=255)
+    body = models.TextField(blank=True, default="")
+    data = models.JSONField(blank=True, default=dict)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["user", "is_read"])]
+
+    def __str__(self):
+        return f"{self.user.phone} - {self.title}"

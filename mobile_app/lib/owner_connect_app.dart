@@ -8,6 +8,7 @@ import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/app_localizations.dart';
 import 'features/financial/presentation/bloc/financial_bloc.dart';
+import 'features/notifications/presentation/bloc/notification_bloc.dart';
 import 'features/support/presentation/bloc/support_bloc.dart';
 
 /// Root widget: provides the app-wide blocs and configures MaterialApp. All
@@ -35,6 +36,7 @@ class OwnerConnectApp extends StatelessWidget {
         BlocProvider.value(value: dependencies.localeCubit),
         BlocProvider(create: (_) => FinancialBloc(repository: dependencies.financialRepository)),
         BlocProvider(create: (_) => SupportBloc(repository: dependencies.supportRepository)),
+        BlocProvider(create: (_) => NotificationBloc(repository: dependencies.notificationRepository)),
       ],
       child: BlocBuilder<LocaleCubit, Locale>(
         builder: (context, locale) {

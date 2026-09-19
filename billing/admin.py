@@ -5,7 +5,8 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 from unfold.admin import ModelAdmin
 
-from core.models import Resort
+from core.models import Notification, Resort
+from core.notifications import notify_user
 from core.permissions import RoleBasedAdminMixin, SupervisorAdminMixin
 from .models import Charge, PaymentDeferral, PaymentPlan, PaymentPlanInstallment
 
@@ -129,16 +130,13 @@ def approve_payment_plans(modeladmin, request, queryset):
         raise PermissionDenied("You are not allowed to approve payment plans.")
     for plan in queryset:
         plan.approve(request.user)
-        try:
-            from core.tasks import send_fcm_notification_task
-            send_fcm_notification_task.delay(
-                user_id=plan.requested_by_id,
-                title="Payment Plan Approved",
-                body=f"Your payment plan for {plan.charge.unit.unit_key} was approved.",
-                data={"type": "payment_plan_decided", "plan_id": plan.id, "status": "APPROVED"},
-            )
-        except Exception:
-            pass
+        notify_user(
+            plan.requested_by,
+            title="Payment Plan Approved",
+            body=f"Your payment plan for {plan.charge.unit.unit_key} was approved.",
+            notif_type=Notification.Type.PAYMENT_PLAN_DECIDED,
+            data={"type": "payment_plan_decided", "plan_id": plan.id, "status": "APPROVED"},
+        )
 
 
 @admin.action(description="Reject selected payment plans")
@@ -147,16 +145,13 @@ def reject_payment_plans(modeladmin, request, queryset):
         raise PermissionDenied("You are not allowed to reject payment plans.")
     for plan in queryset:
         plan.reject(request.user)
-        try:
-            from core.tasks import send_fcm_notification_task
-            send_fcm_notification_task.delay(
-                user_id=plan.requested_by_id,
-                title="Payment Plan Rejected",
-                body=f"Your payment plan for {plan.charge.unit.unit_key} was rejected.",
-                data={"type": "payment_plan_decided", "plan_id": plan.id, "status": "REJECTED"},
-            )
-        except Exception:
-            pass
+        notify_user(
+            plan.requested_by,
+            title="Payment Plan Rejected",
+            body=f"Your payment plan for {plan.charge.unit.unit_key} was rejected.",
+            notif_type=Notification.Type.PAYMENT_PLAN_DECIDED,
+            data={"type": "payment_plan_decided", "plan_id": plan.id, "status": "REJECTED"},
+        )
 
 
 class PaymentPlanInstallmentInline(admin.TabularInline):

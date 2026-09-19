@@ -14,4 +14,9 @@ class ApiEndpoints {
   static const String tickets = "/api/owner/tickets/";
   static String ticketMessages(int ticketId) => "/api/owner/tickets/$ticketId/messages/";
   static const String passes = "/api/owner/passes/";
+
+  static const String notifications = "/api/notifications/";
+  static String notificationRead(int id) => "/api/notifications/$id/read/";
+  static const String notificationsMarkAllRead = "/api/notifications/mark-all-read/";
+  static const String notificationsUnreadCount = "/api/notifications/unread-count/";
 }

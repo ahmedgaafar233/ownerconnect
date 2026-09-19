@@ -28,7 +28,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from billing.models import Charge
-from core.models import OwnerUnit
+from core.models import Notification, OwnerUnit
+from core.notifications import notify_unit_counterparts, notify_user
 from users.models import User
 
 from .models import Payment, PaymentAllocation, PaymentSession
@@ -402,17 +403,26 @@ class PaymentWebhookAPIView(APIView):
                 # ── 11. Mark session complete ─────────────────────────────────
                 session.mark_completed()
 
-                # ── 12. Trigger async FCM push notification to owner ──────────
+                # ── 12. Notify the payer, and the other party on this unit ────
                 try:
-                    from core.tasks import send_fcm_notification_task
-                    send_fcm_notification_task.delay(
-                        user_id=session.owner_id,
+                    notify_user(
+                        session.owner,
                         title="Payment Successful",
                         body=f"Your payment of {session.amount} EGP for unit {session.unit.unit_key} was recorded. Receipt: {receipt_no}",
+                        notif_type=Notification.Type.PAYMENT_SUCCESS,
                         data={"type": "payment_success", "receipt_no": receipt_no, "unit_id": session.unit_id},
                     )
+                    payer_label = session.owner.fullname or session.owner.phone
+                    notify_unit_counterparts(
+                        session.unit,
+                        acting_user=session.owner,
+                        title="Unit Payment Received",
+                        body=f"{payer_label} paid {session.amount} EGP for unit {session.unit.unit_key}. Receipt: {receipt_no}",
+                        notif_type=Notification.Type.UNIT_ACTIVITY,
+                        data={"type": "unit_payment_success", "receipt_no": receipt_no, "unit_id": session.unit_id},
+                    )
                 except Exception as task_err:
-                    logger.warning(f"Failed to dispatch FCM task: {task_err}")
+                    logger.warning(f"Failed to dispatch notifications: {task_err}")
 
                 logger.info(
                     "Paymob webhook: payment recorded successfully. "
