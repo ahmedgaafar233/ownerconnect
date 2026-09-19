@@ -7,132 +7,65 @@
     {% include "pdf/_bilingual_style.html" %}
 </head>
 <body>
-    <div class="bilingual-wrap">
-        <div class="col" dir="ltr" lang="en">
-            <div class="header">
-                <h1>{{ resort.name }}</h1>
-                <p>Payment Receipt</p>
-            </div>
+    <div class="header">
+        <h1>{{ resort.name }}</h1>
+        <p>Payment Receipt / إيصال دفع</p>
+    </div>
 
-            <div class="receipt-no">
-                <span>Receipt No: {{ payment.receipt_no }}</span>
-            </div>
+    <div class="receipt-no">
+        <span>Receipt No / رقم الإيصال: {{ payment.receipt_no }}</span>
+    </div>
 
-            <div class="info-grid">
-                <div class="info-box">
-                    <h3>Unit</h3>
-                    <p>{{ unit.unit_key }}</p>
-                </div>
-                <div class="info-box">
-                    <h3>Owner Name</h3>
-                    <p>{{ owner_name|default:"-" }}</p>
-                </div>
-                <div class="info-box">
-                    <h3>Payment Date</h3>
-                    <p>{{ payment.paid_at|date:"Y-m-d H:i" }}</p>
-                </div>
-                <div class="info-box">
-                    <h3>Payment Method</h3>
-                    <p>{{ channel_label_en }}</p>
-                </div>
-            </div>
-
-            <table>
-                <thead>
-                    <tr>
-                        <th>Item</th>
-                        <th>Period</th>
-                        <th>Amount</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for allocation in allocations %}
-                    <tr>
-                        <td>{{ allocation.charge.get_type_display }}</td>
-                        <td>{% if allocation.charge.month %}{{ allocation.charge.month }}/{% endif %}{{ allocation.charge.year }}</td>
-                        <td>{{ allocation.amount|floatformat:2 }} EGP</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-
-            <div class="total-box" style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;">
-                <span>Total Paid</span>
-                <span>{{ payment.total_amount|floatformat:2 }} EGP</span>
-            </div>
-
-            {% if payment.notes %}
-            <p style="margin-top: 16px; font-size: 11px; color: #4a5568;">Notes: {{ payment.notes }}</p>
-            {% endif %}
-
-            <div class="footer">
-                This receipt was issued automatically by the OwnerConnect management system at the time of payment and its content does not change afterward.
-            </div>
+    <div class="info-grid">
+        <div class="info-box">
+            <h3>Unit / الوحدة</h3>
+            <p>{{ unit.unit_key }}</p>
         </div>
-
-        <div class="divider"></div>
-
-        <div class="col" dir="rtl" lang="ar">
-            <div class="header">
-                <h1>{{ resort.name }}</h1>
-                <p>إيصال دفع</p>
-            </div>
-
-            <div class="receipt-no">
-                <span>رقم الإيصال: {{ payment.receipt_no }}</span>
-            </div>
-
-            <div class="info-grid">
-                <div class="info-box">
-                    <h3>الوحدة</h3>
-                    <p>{{ unit.unit_key }}</p>
-                </div>
-                <div class="info-box">
-                    <h3>اسم المالك</h3>
-                    <p>{{ owner_name|default:"-" }}</p>
-                </div>
-                <div class="info-box">
-                    <h3>تاريخ الدفع</h3>
-                    <p>{{ payment.paid_at|date:"Y-m-d H:i" }}</p>
-                </div>
-                <div class="info-box">
-                    <h3>طريقة الدفع</h3>
-                    <p>{{ channel_label_ar }}</p>
-                </div>
-            </div>
-
-            <table>
-                <thead>
-                    <tr>
-                        <th>البند</th>
-                        <th>الفترة</th>
-                        <th>المبلغ</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for allocation in allocations %}
-                    <tr>
-                        <td>{{ charge_type_ar|get_item:allocation.charge.type }}</td>
-                        <td>{% if allocation.charge.month %}{{ allocation.charge.month }}/{% endif %}{{ allocation.charge.year }}</td>
-                        <td>{{ allocation.amount|floatformat:2 }} EGP</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-
-            <div class="total-box" style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;">
-                <span>الإجمالي المدفوع</span>
-                <span>{{ payment.total_amount|floatformat:2 }} EGP</span>
-            </div>
-
-            {% if payment.notes %}
-            <p style="margin-top: 16px; font-size: 11px; color: #4a5568;">ملاحظات: {{ payment.notes }}</p>
-            {% endif %}
-
-            <div class="footer">
-                تم إصدار هذا الإيصال آليًا من نظام إدارة OwnerConnect وقت السداد، ولا يتغير محتواه بعد ذلك.
-            </div>
+        <div class="info-box">
+            <h3>Owner Name / اسم المالك</h3>
+            <p>{{ owner_name|default:"-" }}</p>
         </div>
+        <div class="info-box">
+            <h3>Payment Date / تاريخ الدفع</h3>
+            <p>{{ payment.paid_at|date:"Y-m-d H:i" }}</p>
+        </div>
+        <div class="info-box">
+            <h3>Payment Method / طريقة الدفع</h3>
+            <p>{{ channel_label_en }} / {{ channel_label_ar }}</p>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Item / البند</th>
+                <th>Period / الفترة</th>
+                <th>Amount / المبلغ</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for allocation in allocations %}
+            <tr>
+                <td>{{ allocation.charge.get_type_display }} / {{ charge_type_ar|get_item:allocation.charge.type }}</td>
+                <td>{% if allocation.charge.month %}{{ allocation.charge.month }}/{% endif %}{{ allocation.charge.year }}</td>
+                <td>{{ allocation.amount|floatformat:2 }} EGP</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="total-box-row">
+        <span>Total Paid / الإجمالي المدفوع</span>
+        <span>{{ payment.total_amount|floatformat:2 }} EGP</span>
+    </div>
+
+    {% if payment.notes %}
+    <p style="margin-top: 16px; font-size: 12px; color: #4a5568;">Notes / ملاحظات: {{ payment.notes }}</p>
+    {% endif %}
+
+    <div class="footer">
+        <p>This receipt was issued automatically by the OwnerConnect management system at the time of payment and its content does not change afterward.</p>
+        <p>تم إصدار هذا الإيصال آليًا من نظام إدارة OwnerConnect وقت السداد، ولا يتغير محتواه بعد ذلك.</p>
     </div>
 </body>
 </html>

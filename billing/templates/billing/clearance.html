@@ -7,172 +7,85 @@
     {% include "pdf/_bilingual_style.html" %}
 </head>
 <body>
-    <div class="bilingual-wrap">
-        <div class="col" dir="ltr" lang="en">
-            <div class="header">
-                <h1>{{ resort.name }}</h1>
-                <p>Clearance Statement</p>
-            </div>
+    <div class="header">
+        <h1>{{ resort.name }}</h1>
+        <p>Clearance Statement / مخالصة</p>
+    </div>
 
-            <div class="title-badge">
-                <span>Statement No: {{ statement.id }}</span>
-            </div>
+    <div class="title-badge">
+        <span>Statement No / مخالصة رقم: {{ statement.id }}</span>
+    </div>
 
-            <div class="info-grid">
-                <div class="info-box">
-                    <h3>Unit</h3>
-                    <p>{{ unit.unit_key }}</p>
-                </div>
-                <div class="info-box">
-                    <h3>Owner Name</h3>
-                    <p>{{ owner_name|default:"-" }}</p>
-                </div>
-                <div class="info-box">
-                    <h3>Requested By</h3>
-                    <p>{{ requester_name }}</p>
-                </div>
-                <div class="info-box">
-                    <h3>Period</h3>
-                    <p>{% if statement.period_start %}{{ statement.period_start|date:"Y-m-d" }}{% else %}-{% endif %} to {{ statement.as_of_date|date:"Y-m-d" }}</p>
-                </div>
-            </div>
-
-            {% if statement.is_clear %}
-            <div class="status-box status-clear">Unit Fully Cleared — No Outstanding Balance</div>
-            {% else %}
-            <div class="status-box status-outstanding">Outstanding Amount: {{ statement.total_remaining|floatformat:2 }} EGP</div>
-            {% endif %}
-
-            <div class="totals-grid">
-                <div class="total-box">
-                    <h4>Total Due</h4>
-                    <p>{{ statement.total_due|floatformat:2 }} EGP</p>
-                </div>
-                <div class="total-box">
-                    <h4>Total Paid</h4>
-                    <p>{{ statement.total_paid|floatformat:2 }} EGP</p>
-                </div>
-                <div class="total-box">
-                    <h4>Remaining</h4>
-                    <p>{{ statement.total_remaining|floatformat:2 }} EGP</p>
-                </div>
-            </div>
-
-            <table>
-                <thead>
-                    <tr>
-                        <th>Item</th>
-                        <th>Period</th>
-                        <th>Amount</th>
-                        <th>Paid</th>
-                        <th>Remaining</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for charge in charges %}
-                    <tr>
-                        <td>{{ charge.get_type_display }}</td>
-                        <td>{% if charge.month %}{{ charge.month }}/{% endif %}{{ charge.year }}</td>
-                        <td>{{ charge.amount|floatformat:2 }} EGP</td>
-                        <td>{{ charge.total_paid|floatformat:2 }} EGP</td>
-                        <td>{{ charge.balance|floatformat:2 }} EGP</td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="5" style="text-align:center; color:#a0aec0;">No charges in this period</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-
-            <div class="footer">
-                This statement reflects the unit's balance as of {{ statement.as_of_date|date:"Y-m-d" }} only, and the balance may change afterward due to new charges or payments. Issued automatically by the OwnerConnect management system.
-            </div>
+    <div class="info-grid">
+        <div class="info-box">
+            <h3>Unit / الوحدة</h3>
+            <p>{{ unit.unit_key }}</p>
         </div>
-
-        <div class="divider"></div>
-
-        <div class="col" dir="rtl" lang="ar">
-            <div class="header">
-                <h1>{{ resort.name }}</h1>
-                <p>مخالصة</p>
-            </div>
-
-            <div class="title-badge">
-                <span>مخالصة رقم: {{ statement.id }}</span>
-            </div>
-
-            <div class="info-grid">
-                <div class="info-box">
-                    <h3>الوحدة</h3>
-                    <p>{{ unit.unit_key }}</p>
-                </div>
-                <div class="info-box">
-                    <h3>اسم المالك</h3>
-                    <p>{{ owner_name|default:"-" }}</p>
-                </div>
-                <div class="info-box">
-                    <h3>مقدم الطلب</h3>
-                    <p>{{ requester_name }}</p>
-                </div>
-                <div class="info-box">
-                    <h3>الفترة</h3>
-                    <p>{% if statement.period_start %}{{ statement.period_start|date:"Y-m-d" }}{% else %}-{% endif %} إلى {{ statement.as_of_date|date:"Y-m-d" }}</p>
-                </div>
-            </div>
-
-            {% if statement.is_clear %}
-            <div class="status-box status-clear">الوحدة خالصة تماماً — لا يوجد أي متأخرات</div>
-            {% else %}
-            <div class="status-box status-outstanding">يوجد مبلغ مستحق: {{ statement.total_remaining|floatformat:2 }} EGP</div>
-            {% endif %}
-
-            <div class="totals-grid">
-                <div class="total-box">
-                    <h4>إجمالي المستحق</h4>
-                    <p>{{ statement.total_due|floatformat:2 }} EGP</p>
-                </div>
-                <div class="total-box">
-                    <h4>إجمالي المدفوع</h4>
-                    <p>{{ statement.total_paid|floatformat:2 }} EGP</p>
-                </div>
-                <div class="total-box">
-                    <h4>المتبقي</h4>
-                    <p>{{ statement.total_remaining|floatformat:2 }} EGP</p>
-                </div>
-            </div>
-
-            <table>
-                <thead>
-                    <tr>
-                        <th>البند</th>
-                        <th>الفترة</th>
-                        <th>المبلغ</th>
-                        <th>المدفوع</th>
-                        <th>المتبقي</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for charge in charges %}
-                    <tr>
-                        <td>{{ charge_type_ar|get_item:charge.type }}</td>
-                        <td>{% if charge.month %}{{ charge.month }}/{% endif %}{{ charge.year }}</td>
-                        <td>{{ charge.amount|floatformat:2 }} EGP</td>
-                        <td>{{ charge.total_paid|floatformat:2 }} EGP</td>
-                        <td>{{ charge.balance|floatformat:2 }} EGP</td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="5" style="text-align:center; color:#a0aec0;">لا توجد مستحقات في هذه الفترة</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-
-            <div class="footer">
-                هذه المخالصة تعكس رصيد الوحدة كما هو بتاريخ {{ statement.as_of_date|date:"Y-m-d" }} فقط، وقد يتغير الرصيد بعد هذا التاريخ نتيجة مستحقات أو مدفوعات جديدة. صادرة آليًا من نظام إدارة OwnerConnect.
-            </div>
+        <div class="info-box">
+            <h3>Owner Name / اسم المالك</h3>
+            <p>{{ owner_name|default:"-" }}</p>
         </div>
+        <div class="info-box">
+            <h3>Requested By / مقدم الطلب</h3>
+            <p>{{ requester_name }}</p>
+        </div>
+        <div class="info-box">
+            <h3>Period / الفترة</h3>
+            <p>{% if statement.period_start %}{{ statement.period_start|date:"Y-m-d" }}{% else %}-{% endif %} to / إلى {{ statement.as_of_date|date:"Y-m-d" }}</p>
+        </div>
+    </div>
+
+    {% if statement.is_clear %}
+    <div class="status-box status-clear">Unit Fully Cleared — No Outstanding Balance<br>الوحدة خالصة تماماً - لا يوجد أي متأخرات</div>
+    {% else %}
+    <div class="status-box status-outstanding">Outstanding Amount / يوجد مبلغ مستحق: {{ statement.total_remaining|floatformat:2 }} EGP</div>
+    {% endif %}
+
+    <div class="totals-grid">
+        <div class="total-box">
+            <h4>Total Due / إجمالي المستحق</h4>
+            <p>{{ statement.total_due|floatformat:2 }} EGP</p>
+        </div>
+        <div class="total-box">
+            <h4>Total Paid / إجمالي المدفوع</h4>
+            <p>{{ statement.total_paid|floatformat:2 }} EGP</p>
+        </div>
+        <div class="total-box">
+            <h4>Remaining / المتبقي</h4>
+            <p>{{ statement.total_remaining|floatformat:2 }} EGP</p>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Item / البند</th>
+                <th>Period / الفترة</th>
+                <th>Amount / المبلغ</th>
+                <th>Paid / المدفوع</th>
+                <th>Remaining / المتبقي</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for charge in charges %}
+            <tr>
+                <td>{{ charge.get_type_display }} / {{ charge_type_ar|get_item:charge.type }}</td>
+                <td>{% if charge.month %}{{ charge.month }}/{% endif %}{{ charge.year }}</td>
+                <td>{{ charge.amount|floatformat:2 }} EGP</td>
+                <td>{{ charge.total_paid|floatformat:2 }} EGP</td>
+                <td>{{ charge.balance|floatformat:2 }} EGP</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" style="text-align:center; color:#a0aec0;">No charges in this period / لا توجد مستحقات في هذه الفترة</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="footer">
+        <p>This statement reflects the unit's balance as of {{ statement.as_of_date|date:"Y-m-d" }} only, and the balance may change afterward due to new charges or payments. Issued automatically by the OwnerConnect management system.</p>
+        <p>هذه المخالصة تعكس رصيد الوحدة كما هو بتاريخ {{ statement.as_of_date|date:"Y-m-d" }} فقط، وقد يتغير الرصيد بعد هذا التاريخ نتيجة مستحقات أو مدفوعات جديدة. صادرة آليًا من نظام إدارة OwnerConnect.</p>
     </div>
 </body>
 </html>

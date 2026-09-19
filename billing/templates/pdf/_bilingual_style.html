@@ -1,7 +1,7 @@
 <style>
     @page {
-        size: A4 landscape;
-        margin: 24px 32px;
+        size: A4 portrait;
+        margin: 30px 40px;
     }
     * { box-sizing: border-box; }
     body {
@@ -10,87 +10,75 @@
         padding: 0;
         color: #1a202c;
         line-height: 1.5;
-    }
-
-    .bilingual-wrap {
-        display: flex;
-        flex-direction: row;
-        width: 100%;
-    }
-    .col {
-        width: 50%;
-        padding: 0 20px;
-    }
-    .divider {
-        width: 1px;
-        background: #cbd5e0;
+        direction: ltr;
     }
 
     .header {
         text-align: center;
-        margin-bottom: 24px;
+        margin-bottom: 28px;
         border-bottom: 4px solid #1a202c;
-        padding-bottom: 16px;
+        padding-bottom: 18px;
     }
-    .header h1 { margin: 0; font-size: 20px; font-weight: 900; }
-    .header p { margin: 5px 0; color: #4a5568; font-weight: 700; font-size: 13px; }
+    .header h1 { margin: 0; font-size: 24px; font-weight: 900; }
+    .header p { margin: 6px 0 0; color: #4a5568; font-weight: 700; font-size: 14px; }
 
-    .title-badge {
+    .title-badge, .receipt-no {
         text-align: center;
-        margin-bottom: 20px;
+        margin-bottom: 24px;
     }
-    .title-badge span {
+    .title-badge span, .receipt-no span {
         display: inline-block;
         background: #1a202c;
         color: white;
-        padding: 8px 18px;
+        padding: 9px 22px;
         border-radius: 10px;
-        font-size: 14px;
+        font-size: 15px;
         font-weight: 900;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.3px;
     }
 
     .info-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 10px;
-        margin-bottom: 20px;
+        gap: 14px;
+        margin-bottom: 24px;
     }
     .info-box {
         background: #f7fafc;
-        padding: 10px;
+        padding: 12px 14px;
         border-radius: 10px;
         border: 1px solid #edf2f7;
     }
-    .info-box h3 { margin: 0 0 6px 0; font-size: 10px; color: #718096; text-transform: uppercase; }
-    .info-box p { margin: 0; font-size: 13px; font-weight: 700; }
+    .info-box h3 { margin: 0 0 6px 0; font-size: 11px; color: #718096; font-weight: 700; }
+    .info-box p { margin: 0; font-size: 14px; font-weight: 700; }
 
     table {
         width: 100%;
         border-collapse: collapse;
-        margin-bottom: 20px;
-        font-size: 11px;
+        margin-bottom: 24px;
+        font-size: 12px;
     }
     th {
         background: #1a202c;
         color: white;
-        text-align: inherit;
-        padding: 8px;
-        font-size: 11px;
+        text-align: left;
+        padding: 10px;
+        font-size: 12px;
+        font-weight: 700;
     }
     td {
-        padding: 8px;
+        padding: 10px;
         border-bottom: 1px solid #edf2f7;
-        font-size: 11px;
+        font-size: 12px;
     }
 
     .status-box {
-        padding: 16px 18px;
+        padding: 18px 20px;
         border-radius: 14px;
         text-align: center;
         font-size: 15px;
         font-weight: 900;
-        margin-bottom: 16px;
+        margin-bottom: 20px;
     }
     .status-clear { background: #22543d; color: white; }
     .status-outstanding { background: #742a2a; color: white; }
@@ -98,40 +86,39 @@
     .totals-grid {
         display: grid;
         grid-template-columns: 1fr 1fr 1fr;
-        gap: 10px;
-        margin-bottom: 20px;
+        gap: 12px;
+        margin-bottom: 24px;
     }
     .total-box {
         background: #1a202c;
         color: white;
-        padding: 10px;
+        padding: 12px;
         border-radius: 10px;
         text-align: center;
     }
-    .total-box h4 { margin: 0 0 4px 0; font-size: 10px; opacity: 0.8; }
-    .total-box p { margin: 0; font-size: 14px; font-weight: 900; }
+    .total-box h4 { margin: 0 0 5px 0; font-size: 11px; opacity: 0.85; font-weight: 700; }
+    .total-box p { margin: 0; font-size: 16px; font-weight: 900; }
 
-    .receipt-no {
-        text-align: center;
-        margin-bottom: 20px;
-    }
-    .receipt-no span {
-        display: inline-block;
+    .total-box-row {
         background: #1a202c;
         color: white;
-        padding: 8px 18px;
-        border-radius: 10px;
-        font-size: 14px;
+        padding: 16px 20px;
+        border-radius: 14px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 17px;
         font-weight: 900;
-        letter-spacing: 0.5px;
+        margin-bottom: 20px;
     }
 
     .footer {
         margin-top: 30px;
         text-align: center;
-        font-size: 9px;
+        font-size: 10px;
         color: #a0aec0;
         border-top: 1px solid #edf2f7;
-        padding-top: 12px;
+        padding-top: 14px;
     }
+    .footer p { margin: 3px 0; }
 </style>
