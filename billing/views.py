@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -51,6 +53,24 @@ def _lease_floor_q(user, unit_ids):
     return floor_q
 
 
+def _accessible_charges_qs(user):
+    """
+    Base PUBLISHED-charge queryset for OWNER/TENANT — the shared
+    unit_ids/TENANT-utility-type/lease-floor resolution used by both
+    OwnerChargeListView and ChargeSummaryView, so the two can never drift
+    apart (a Tenant's combined total must respect the exact same
+    restrictions as their charge list).
+    """
+    unit_ids = OwnerUnit.objects.filter(owner=user).values_list("unit_id", flat=True)
+    qs = Charge.objects.filter(unit_id__in=unit_ids, status=Charge.Status.PUBLISHED)
+    if user.role == User.Role.TENANT:
+        qs = qs.filter(type__in=[Charge.Type.ELECTRICITY, Charge.Type.WATER])
+    floor_q = _lease_floor_q(user, unit_ids)
+    if floor_q is not None:
+        qs = qs.filter(floor_q)
+    return qs, unit_ids
+
+
 def _accessible_charge_or_404(user, charge_id):
     """
     Shared ownership + Tenant-charge-type/lease-date resolution, matching
@@ -85,22 +105,12 @@ class OwnerChargeListView(generics.ListAPIView):
         if user.role not in (User.Role.OWNER, User.Role.TENANT):
             raise PermissionDenied("Owners only")
 
-        unit_ids = OwnerUnit.objects.filter(owner=user).values_list("unit_id", flat=True)
-
+        qs, _unit_ids = _accessible_charges_qs(user)
         qs = (
-            Charge.objects.filter(
-                unit_id__in=unit_ids,
-                status=Charge.Status.PUBLISHED,
-            )
-            .select_related("unit", "resort")
+            qs.select_related("unit", "resort")
             .prefetch_related("allocations")
             .order_by("-year", "-month", "-id")
         )
-
-        # A Tenant only deals with utility bills, never the owner's annual
-        # maintenance/service charges.
-        if user.role == User.Role.TENANT:
-            qs = qs.filter(type__in=[Charge.Type.ELECTRICITY, Charge.Type.WATER])
 
         unit = self.request.query_params.get("unit")
         year = self.request.query_params.get("year")
@@ -117,10 +127,6 @@ class OwnerChargeListView(generics.ListAPIView):
         if ctype:
             qs = qs.filter(type=ctype)
 
-        floor_q = _lease_floor_q(user, unit_ids)
-        if floor_q is not None:
-            qs = qs.filter(floor_q)
-
         return qs
 
 
@@ -131,7 +137,11 @@ class OwnerPaymentHistoryView(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        if user.role != User.Role.OWNER:
+        # A Payment belongs to a unit, not a specific person — whoever is
+        # OwnerUnit-linked to that unit (Owner or Tenant) sees it, matching
+        # the charges list's own unit_ids scoping. No extra Tenant filtering
+        # needed here: unlike Charge, Payment has no type of its own.
+        if user.role not in (User.Role.OWNER, User.Role.TENANT):
             raise PermissionDenied("Owners only")
 
         unit_ids = OwnerUnit.objects.filter(owner=user).values_list("unit_id", flat=True)
@@ -144,10 +154,66 @@ class OwnerPaymentHistoryView(generics.ListAPIView):
         )
 
         unit = self.request.query_params.get("unit")
+        year = self.request.query_params.get("year")
+        month = self.request.query_params.get("month")
+
         if unit:
             qs = qs.filter(unit_id=unit)
+        if year:
+            qs = qs.filter(paid_at__year=int(year))
+        if month:
+            qs = qs.filter(paid_at__month=int(month))
 
         return qs
+
+
+class ChargeSummaryView(APIView):
+    """
+    Combined total across every unit the caller can see, plus a per-unit
+    breakdown — for an Owner/Tenant with more than one unit, there was no
+    aggregate view before this. Reuses _accessible_charges_qs so a Tenant's
+    total respects the exact same utility-type + lease-floor restrictions
+    as their charge list, never the unscoped User.total_debt/total_paid
+    model properties (which predate and ignore both).
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        if user.role not in (User.Role.OWNER, User.Role.TENANT):
+            raise PermissionDenied("Owners only")
+
+        qs, _unit_ids = _accessible_charges_qs(user)
+        charges = qs.select_related("unit").prefetch_related("allocations")
+
+        total_due = Decimal("0.00")
+        total_paid = Decimal("0.00")
+        by_unit = {}
+
+        for charge in charges:
+            # Summed from the already-prefetched allocations, not
+            # charge.total_paid/.balance — those properties re-query via
+            # .aggregate() per charge, which would be an N+1 here.
+            paid = sum((a.amount for a in charge.allocations.all()), Decimal("0.00"))
+            remaining = charge.amount - paid
+            total_due += charge.amount
+            total_paid += paid
+
+            entry = by_unit.setdefault(
+                charge.unit_id,
+                {"unit": charge.unit_id, "unit_key": charge.unit.unit_key, "remaining": Decimal("0.00")},
+            )
+            entry["remaining"] += remaining
+
+        return Response({
+            "total_due": str(total_due),
+            "total_paid": str(total_paid),
+            "total_remaining": str(total_due - total_paid),
+            "by_unit": [
+                {"unit": v["unit"], "unit_key": v["unit_key"], "remaining": str(v["remaining"])}
+                for v in by_unit.values()
+            ],
+        })
 
 
 class ChargeDeferView(APIView):

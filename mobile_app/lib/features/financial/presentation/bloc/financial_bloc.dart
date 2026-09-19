@@ -6,8 +6,9 @@ import 'financial_state.dart';
 class FinancialBloc extends Bloc<FinancialEvent, FinancialState> {
   final FinancialRepository repository;
 
-  FinancialBloc({required this.repository}) : super(FinancialInitialState()) {
+  FinancialBloc({required this.repository}) : super(const FinancialInitialState()) {
     on<FetchChargesEvent>(_onFetchCharges);
+    on<FetchChargeSummaryEvent>(_onFetchChargeSummary);
     on<InitiatePaymentEvent>(_onInitiatePayment);
     on<PaymentCompletedEvent>(_onPaymentCompleted);
     on<PaymentFailedEvent>(_onPaymentFailed);
@@ -23,21 +24,24 @@ class FinancialBloc extends Bloc<FinancialEvent, FinancialState> {
     final currentState = state;
 
     if (event.page == 1) {
-      emit(FinancialLoadingState());
+      emit(FinancialLoadingState(summary: state.summary));
       try {
         final charges = await repository.getCharges(
           page: 1,
           type: event.typeFilter,
           unpaidOnly: event.unpaidOnly,
+          year: event.year,
+          month: event.month,
         );
         emit(ChargesLoadedState(
           charges: charges,
           hasReachedMax: charges.length < 15,
           currentPage: 1,
           isFetchingMore: false,
+          summary: state.summary,
         ));
       } catch (e) {
-        emit(FinancialErrorState(errorMessage: e.toString()));
+        emit(FinancialErrorState(errorMessage: e.toString(), summary: state.summary));
       }
     } else if (currentState is ChargesLoadedState && !currentState.hasReachedMax && !currentState.isFetchingMore) {
       emit(currentState.copyWith(isFetchingMore: true));
@@ -46,6 +50,8 @@ class FinancialBloc extends Bloc<FinancialEvent, FinancialState> {
           page: event.page,
           type: event.typeFilter,
           unpaidOnly: event.unpaidOnly,
+          year: event.year,
+          month: event.month,
         );
 
         if (newCharges.isEmpty) {
@@ -56,6 +62,7 @@ class FinancialBloc extends Bloc<FinancialEvent, FinancialState> {
             hasReachedMax: newCharges.length < 15,
             currentPage: event.page,
             isFetchingMore: false,
+            summary: state.summary,
           ));
         }
       } catch (e) {
@@ -64,17 +71,41 @@ class FinancialBloc extends Bloc<FinancialEvent, FinancialState> {
     }
   }
 
+  Future<void> _onFetchChargeSummary(
+    FetchChargeSummaryEvent event,
+    Emitter<FinancialState> emit,
+  ) async {
+    try {
+      final summary = await repository.getChargeSummary();
+      final current = state;
+      if (current is ChargesLoadedState) {
+        emit(current.copyWith(summary: summary));
+      } else if (current is PaymentHistoryLoadedState) {
+        emit(current.copyWith(summary: summary));
+      } else if (current is FinancialErrorState) {
+        emit(FinancialErrorState(errorMessage: current.errorMessage, summary: summary));
+      } else if (current is FinancialLoadingState) {
+        emit(FinancialLoadingState(summary: summary));
+      } else {
+        emit(FinancialInitialState(summary: summary));
+      }
+    } catch (_) {
+      // Best-effort — the summary card just stays hidden/stale; the main
+      // charges/payments list is unaffected.
+    }
+  }
+
   Future<void> _onInitiatePayment(
     InitiatePaymentEvent event,
     Emitter<FinancialState> emit,
   ) async {
     final currentState = state;
-    emit(FinancialLoadingState());
+    emit(FinancialLoadingState(summary: state.summary));
     try {
       final session = await repository.initiateOnlinePayment(event.chargeIds);
-      emit(PaymentInitiatedState(paymentSession: session));
+      emit(PaymentInitiatedState(paymentSession: session, summary: state.summary));
     } catch (e) {
-      emit(FinancialErrorState(errorMessage: e.toString()));
+      emit(FinancialErrorState(errorMessage: e.toString(), summary: state.summary));
       if (currentState is ChargesLoadedState) {
         emit(currentState);
       }
@@ -87,13 +118,14 @@ class FinancialBloc extends Bloc<FinancialEvent, FinancialState> {
   ) async {
     // Refresh charges list from server after payment
     add(const FetchChargesEvent(page: 1));
+    add(const FetchChargeSummaryEvent());
   }
 
   Future<void> _onPaymentFailed(
     PaymentFailedEvent event,
     Emitter<FinancialState> emit,
   ) async {
-    emit(FinancialErrorState(errorMessage: event.errorMessage));
+    emit(FinancialErrorState(errorMessage: event.errorMessage, summary: state.summary));
     // Without this, ChargesScreen (still mounted underneath the checkout
     // screen) has no ChargesLoadedState to render and goes blank once the
     // user backs out — confirmed on a real device.
@@ -104,29 +136,30 @@ class FinancialBloc extends Bloc<FinancialEvent, FinancialState> {
     DeferChargeEvent event,
     Emitter<FinancialState> emit,
   ) async {
-    emit(FinancialLoadingState());
+    emit(FinancialLoadingState(summary: state.summary));
     try {
       await repository.deferCharge(chargeId: event.chargeId, deferredTo: event.deferredTo);
-      emit(ChargeDeferredState(deferredTo: event.deferredTo));
+      emit(ChargeDeferredState(deferredTo: event.deferredTo, summary: state.summary));
     } catch (e) {
-      emit(FinancialErrorState(errorMessage: e.toString()));
+      emit(FinancialErrorState(errorMessage: e.toString(), summary: state.summary));
     }
     // Same lesson as payment completion/failure: refresh so the charges
     // list (still mounted underneath PaymentOptionsScreen) isn't left on a
     // state it doesn't know how to render.
     add(const FetchChargesEvent(page: 1));
+    add(const FetchChargeSummaryEvent());
   }
 
   Future<void> _onCreatePaymentPlan(
     CreatePaymentPlanEvent event,
     Emitter<FinancialState> emit,
   ) async {
-    emit(FinancialLoadingState());
+    emit(FinancialLoadingState(summary: state.summary));
     try {
       await repository.createPaymentPlan(chargeId: event.chargeId, installments: event.installments);
-      emit(const PaymentPlanCreatedState());
+      emit(PaymentPlanCreatedState(summary: state.summary));
     } catch (e) {
-      emit(FinancialErrorState(errorMessage: e.toString()));
+      emit(FinancialErrorState(errorMessage: e.toString(), summary: state.summary));
     }
     add(const FetchChargesEvent(page: 1));
   }
@@ -138,24 +171,25 @@ class FinancialBloc extends Bloc<FinancialEvent, FinancialState> {
     final currentState = state;
 
     if (event.page == 1) {
-      emit(FinancialLoadingState());
+      emit(FinancialLoadingState(summary: state.summary));
       try {
-        final payments = await repository.getPaymentHistory(page: 1);
+        final payments = await repository.getPaymentHistory(page: 1, year: event.year, month: event.month);
         emit(PaymentHistoryLoadedState(
           payments: payments,
           hasReachedMax: payments.length < 15,
           currentPage: 1,
           isFetchingMore: false,
+          summary: state.summary,
         ));
       } catch (e) {
-        emit(FinancialErrorState(errorMessage: e.toString()));
+        emit(FinancialErrorState(errorMessage: e.toString(), summary: state.summary));
       }
     } else if (currentState is PaymentHistoryLoadedState &&
         !currentState.hasReachedMax &&
         !currentState.isFetchingMore) {
       emit(currentState.copyWith(isFetchingMore: true));
       try {
-        final newPayments = await repository.getPaymentHistory(page: event.page);
+        final newPayments = await repository.getPaymentHistory(page: event.page, year: event.year, month: event.month);
         if (newPayments.isEmpty) {
           emit(currentState.copyWith(hasReachedMax: true, isFetchingMore: false));
         } else {
@@ -164,6 +198,7 @@ class FinancialBloc extends Bloc<FinancialEvent, FinancialState> {
             hasReachedMax: newPayments.length < 15,
             currentPage: event.page,
             isFetchingMore: false,
+            summary: state.summary,
           ));
         }
       } catch (e) {

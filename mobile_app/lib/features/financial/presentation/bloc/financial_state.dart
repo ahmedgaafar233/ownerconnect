@@ -1,17 +1,28 @@
 import 'package:equatable/equatable.dart';
 import '../../data/models/charge_model.dart';
+import '../../data/models/charge_summary_model.dart';
 import '../../data/models/payment_model.dart';
 
+// summary rides on every state as a side-channel (mirrors
+// NotificationState.unreadCount) so the combined-total card can render
+// regardless of whatever the "primary" state (loading/loaded/error)
+// currently is, without needing a second BlocProvider.
 abstract class FinancialState extends Equatable {
-  const FinancialState();
+  final ChargeSummaryModel? summary;
+
+  const FinancialState({this.summary});
 
   @override
-  List<Object?> get props => [];
+  List<Object?> get props => [summary];
 }
 
-class FinancialInitialState extends FinancialState {}
+class FinancialInitialState extends FinancialState {
+  const FinancialInitialState({super.summary});
+}
 
-class FinancialLoadingState extends FinancialState {}
+class FinancialLoadingState extends FinancialState {
+  const FinancialLoadingState({super.summary});
+}
 
 class ChargesLoadedState extends FinancialState {
   final List<ChargeModel> charges;
@@ -24,6 +35,7 @@ class ChargesLoadedState extends FinancialState {
     required this.hasReachedMax,
     this.currentPage = 1,
     this.isFetchingMore = false,
+    super.summary,
   });
 
   ChargesLoadedState copyWith({
@@ -31,48 +43,50 @@ class ChargesLoadedState extends FinancialState {
     bool? hasReachedMax,
     int? currentPage,
     bool? isFetchingMore,
+    ChargeSummaryModel? summary,
   }) {
     return ChargesLoadedState(
       charges: charges ?? this.charges,
       hasReachedMax: hasReachedMax ?? this.hasReachedMax,
       currentPage: currentPage ?? this.currentPage,
       isFetchingMore: isFetchingMore ?? this.isFetchingMore,
+      summary: summary ?? this.summary,
     );
   }
 
   @override
-  List<Object?> get props => [charges, hasReachedMax, currentPage, isFetchingMore];
+  List<Object?> get props => [charges, hasReachedMax, currentPage, isFetchingMore, summary];
 }
 
 class PaymentInitiatedState extends FinancialState {
   final Map<String, dynamic> paymentSession;
 
-  const PaymentInitiatedState({required this.paymentSession});
+  const PaymentInitiatedState({required this.paymentSession, super.summary});
 
   @override
-  List<Object?> get props => [paymentSession];
+  List<Object?> get props => [paymentSession, summary];
 }
 
 class FinancialErrorState extends FinancialState {
   final String errorMessage;
 
-  const FinancialErrorState({required this.errorMessage});
+  const FinancialErrorState({required this.errorMessage, super.summary});
 
   @override
-  List<Object?> get props => [errorMessage];
+  List<Object?> get props => [errorMessage, summary];
 }
 
 class ChargeDeferredState extends FinancialState {
   final String deferredTo;
 
-  const ChargeDeferredState({required this.deferredTo});
+  const ChargeDeferredState({required this.deferredTo, super.summary});
 
   @override
-  List<Object?> get props => [deferredTo];
+  List<Object?> get props => [deferredTo, summary];
 }
 
 class PaymentPlanCreatedState extends FinancialState {
-  const PaymentPlanCreatedState();
+  const PaymentPlanCreatedState({super.summary});
 }
 
 class PaymentHistoryLoadedState extends FinancialState {
@@ -86,6 +100,7 @@ class PaymentHistoryLoadedState extends FinancialState {
     required this.hasReachedMax,
     this.currentPage = 1,
     this.isFetchingMore = false,
+    super.summary,
   });
 
   PaymentHistoryLoadedState copyWith({
@@ -93,15 +108,17 @@ class PaymentHistoryLoadedState extends FinancialState {
     bool? hasReachedMax,
     int? currentPage,
     bool? isFetchingMore,
+    ChargeSummaryModel? summary,
   }) {
     return PaymentHistoryLoadedState(
       payments: payments ?? this.payments,
       hasReachedMax: hasReachedMax ?? this.hasReachedMax,
       currentPage: currentPage ?? this.currentPage,
       isFetchingMore: isFetchingMore ?? this.isFetchingMore,
+      summary: summary ?? this.summary,
     );
   }
 
   @override
-  List<Object?> get props => [payments, hasReachedMax, currentPage, isFetchingMore];
+  List<Object?> get props => [payments, hasReachedMax, currentPage, isFetchingMore, summary];
 }

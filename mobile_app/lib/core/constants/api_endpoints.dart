@@ -6,6 +6,7 @@ class ApiEndpoints {
   static const String me = "/api/me/";
 
   static const String charges = "/api/charges/";
+  static const String chargesSummary = "/api/charges/summary/";
   static String chargeDefer(int chargeId) => "/api/charges/$chargeId/defer/";
   static const String paymentPlans = "/api/payment-plans/";
   static const String payments = "/api/payments/";

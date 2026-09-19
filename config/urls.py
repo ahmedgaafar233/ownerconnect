@@ -7,7 +7,13 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from users.views import ActivateView, MeView, GenerateActivationCodeView, FirebaseAuthView, FCMTokenRegisterView
-from billing.views import ChargeDeferView, OwnerChargeListView, OwnerPaymentHistoryView, PaymentPlanListCreateView
+from billing.views import (
+    ChargeDeferView,
+    ChargeSummaryView,
+    OwnerChargeListView,
+    OwnerPaymentHistoryView,
+    PaymentPlanListCreateView,
+)
 from collections_app.api_views import InitiateOnlinePaymentAPIView, PaymentWebhookAPIView
 from core.views import unit_statement_view, unit_search_view, unit_detail_view
 from core.notification_views import (
@@ -44,6 +50,7 @@ urlpatterns = [
     # Profile, Charges & Payments APIs
     path("api/me/", MeView.as_view(), name="me"),
     path("api/charges/", OwnerChargeListView.as_view(), name="owner_charges"),
+    path("api/charges/summary/", ChargeSummaryView.as_view(), name="charges_summary"),
     path("api/charges/<int:pk>/defer/", ChargeDeferView.as_view(), name="charge_defer"),
     path("api/payment-plans/", PaymentPlanListCreateView.as_view(), name="payment_plans"),
     path("api/payments/", OwnerPaymentHistoryView.as_view(), name="owner_payments"),

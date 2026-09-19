@@ -11,11 +11,17 @@ class FetchChargesEvent extends FinancialEvent {
   final int page;
   final String? typeFilter;
   final bool? unpaidOnly;
+  final int? year;
+  final int? month;
 
-  const FetchChargesEvent({this.page = 1, this.typeFilter, this.unpaidOnly});
+  const FetchChargesEvent({this.page = 1, this.typeFilter, this.unpaidOnly, this.year, this.month});
 
   @override
-  List<Object?> get props => [page, typeFilter, unpaidOnly];
+  List<Object?> get props => [page, typeFilter, unpaidOnly, year, month];
+}
+
+class FetchChargeSummaryEvent extends FinancialEvent {
+  const FetchChargeSummaryEvent();
 }
 
 class InitiatePaymentEvent extends FinancialEvent {
@@ -67,9 +73,11 @@ class CreatePaymentPlanEvent extends FinancialEvent {
 
 class FetchPaymentHistoryEvent extends FinancialEvent {
   final int page;
+  final int? year;
+  final int? month;
 
-  const FetchPaymentHistoryEvent({this.page = 1});
+  const FetchPaymentHistoryEvent({this.page = 1, this.year, this.month});
 
   @override
-  List<Object?> get props => [page];
+  List<Object?> get props => [page, year, month];
 }

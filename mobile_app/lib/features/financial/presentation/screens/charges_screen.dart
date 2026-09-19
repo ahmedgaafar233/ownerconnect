@@ -7,6 +7,8 @@ import '../bloc/financial_event.dart';
 import '../bloc/financial_state.dart';
 import '../../../support/presentation/bloc/support_bloc.dart';
 import '../widgets/charge_card.dart';
+import '../widgets/charge_summary_card.dart';
+import '../widgets/month_filter_bar.dart';
 import 'payment_options_screen.dart';
 
 class ChargesScreen extends StatefulWidget {
@@ -19,11 +21,14 @@ class ChargesScreen extends StatefulWidget {
 class _ChargesScreenState extends State<ChargesScreen> {
   final List<int> _selectedChargeIds = [];
   final ScrollController _scrollController = ScrollController();
+  int? _filterYear;
+  int? _filterMonth;
 
   @override
   void initState() {
     super.initState();
     context.read<FinancialBloc>().add(const FetchChargesEvent(page: 1));
+    context.read<FinancialBloc>().add(const FetchChargeSummaryEvent());
     _scrollController.addListener(_onScroll);
   }
 
@@ -38,7 +43,11 @@ class _ChargesScreenState extends State<ChargesScreen> {
     if (_isBottom) {
       final state = context.read<FinancialBloc>().state;
       if (state is ChargesLoadedState && !state.hasReachedMax && !state.isFetchingMore) {
-        context.read<FinancialBloc>().add(FetchChargesEvent(page: state.currentPage + 1));
+        context.read<FinancialBloc>().add(FetchChargesEvent(
+              page: state.currentPage + 1,
+              year: _filterYear,
+              month: _filterMonth,
+            ));
       }
     }
   }
@@ -50,6 +59,14 @@ class _ChargesScreenState extends State<ChargesScreen> {
     return currentScroll >= (maxScroll * 0.9);
   }
 
+  void _onMonthFilterChanged(DateTime? picked) {
+    setState(() {
+      _filterYear = picked?.year;
+      _filterMonth = picked?.month;
+    });
+    context.read<FinancialBloc>().add(FetchChargesEvent(page: 1, year: _filterYear, month: _filterMonth));
+  }
+
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
@@ -57,6 +74,9 @@ class _ChargesScreenState extends State<ChargesScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(loc.translate('charges_title')),
+        actions: [
+          MonthFilterBar(year: _filterYear, month: _filterMonth, onChanged: _onMonthFilterChanged),
+        ],
       ),
       body: BlocConsumer<FinancialBloc, FinancialState>(
         listener: (context, state) {
@@ -71,10 +91,16 @@ class _ChargesScreenState extends State<ChargesScreen> {
             return const Center(child: CircularProgressIndicator());
           } else if (state is ChargesLoadedState) {
             if (state.charges.isEmpty) {
-              return Center(child: Text(loc.translate('no_charges')));
+              return Column(
+                children: [
+                  if (state.summary != null) ChargeSummaryCard(summary: state.summary!),
+                  Expanded(child: Center(child: Text(loc.translate('no_charges')))),
+                ],
+              );
             }
             return Column(
               children: [
+                if (state.summary != null) ChargeSummaryCard(summary: state.summary!),
                 Expanded(
                   child: ListView.builder(
                     controller: _scrollController,

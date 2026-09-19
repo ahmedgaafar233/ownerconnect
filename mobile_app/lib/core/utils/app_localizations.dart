@@ -112,6 +112,10 @@ class AppLocalizations {
       'download_receipt': 'Download Receipt',
       'no_payments_yet': 'No payments found',
       'receipt_no_label': 'Receipt No.',
+      'filter_by_month': 'Filter by month',
+      'clear_filter': 'Clear filter',
+      'combined_total': 'Combined Total Due',
+      'per_unit_breakdown': 'Breakdown by unit',
     },
     'ar': {
       'app_title': 'أونر كونكت',
@@ -214,6 +218,10 @@ class AppLocalizations {
       'download_receipt': 'تحميل الإيصال',
       'no_payments_yet': 'لا توجد مدفوعات',
       'receipt_no_label': 'رقم الإيصال',
+      'filter_by_month': 'تصفية بالشهر',
+      'clear_filter': 'إلغاء التصفية',
+      'combined_total': 'إجمالي المستحقات الموحد',
+      'per_unit_breakdown': 'التفاصيل حسب الوحدة',
     },
   };
 

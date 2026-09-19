@@ -8,6 +8,7 @@ import '../../data/models/payment_model.dart';
 import '../bloc/financial_bloc.dart';
 import '../bloc/financial_event.dart';
 import '../bloc/financial_state.dart';
+import '../widgets/month_filter_bar.dart';
 
 class PaymentHistoryScreen extends StatefulWidget {
   const PaymentHistoryScreen({Key? key}) : super(key: key);
@@ -18,6 +19,8 @@ class PaymentHistoryScreen extends StatefulWidget {
 
 class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
   final ScrollController _scrollController = ScrollController();
+  int? _filterYear;
+  int? _filterMonth;
 
   @override
   void initState() {
@@ -37,9 +40,21 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
     if (_isBottom) {
       final state = context.read<FinancialBloc>().state;
       if (state is PaymentHistoryLoadedState && !state.hasReachedMax && !state.isFetchingMore) {
-        context.read<FinancialBloc>().add(FetchPaymentHistoryEvent(page: state.currentPage + 1));
+        context.read<FinancialBloc>().add(FetchPaymentHistoryEvent(
+              page: state.currentPage + 1,
+              year: _filterYear,
+              month: _filterMonth,
+            ));
       }
     }
+  }
+
+  void _onMonthFilterChanged(DateTime? picked) {
+    setState(() {
+      _filterYear = picked?.year;
+      _filterMonth = picked?.month;
+    });
+    context.read<FinancialBloc>().add(FetchPaymentHistoryEvent(page: 1, year: _filterYear, month: _filterMonth));
   }
 
   bool get _isBottom {
@@ -66,6 +81,9 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(loc.translate('payment_history_title')),
+        actions: [
+          MonthFilterBar(year: _filterYear, month: _filterMonth, onChanged: _onMonthFilterChanged),
+        ],
       ),
       body: BlocBuilder<FinancialBloc, FinancialState>(
         builder: (context, state) {
