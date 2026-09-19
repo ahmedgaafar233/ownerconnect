@@ -3,6 +3,8 @@ import logging
 from django.core.files.base import ContentFile
 from django.template.loader import render_to_string
 
+from billing.receipts import CHARGE_TYPE_LABELS_AR
+
 logger = logging.getLogger("collections_app.receipts")
 
 
@@ -42,7 +44,9 @@ def generate_receipt_pdf(payment):
                 "resort": payment.resort,
                 "owner_name": owner_name,
                 "allocations": payment.allocations.select_related("charge").all(),
-                "channel_label": "دفع أونلاين" if is_online else "دفع نقدي / تحويل",
+                "channel_label_ar": "دفع أونلاين" if is_online else "دفع نقدي / تحويل",
+                "channel_label_en": "Online Payment" if is_online else "Cash / Bank Transfer",
+                "charge_type_ar": CHARGE_TYPE_LABELS_AR,
             },
         )
         pdf_bytes = weasyprint.HTML(string=html).write_pdf()

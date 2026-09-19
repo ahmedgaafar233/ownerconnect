@@ -5,6 +5,18 @@ from django.template.loader import render_to_string
 
 logger = logging.getLogger("billing.receipts")
 
+# Charge.Type choices (billing/models.py) only define an English display
+# label — every PDF in the project is bilingual, so the Arabic side needs
+# its own lookup. Shared here (not duplicated in collections_app/receipts.py)
+# since a charge type only has one true Arabic name project-wide.
+CHARGE_TYPE_LABELS_AR = {
+    "ELECTRICITY": "كهرباء",
+    "WATER": "مياه",
+    "SERVICES": "خدمات",
+    "ANNUAL_MAINTENANCE": "صيانة سنوية",
+    "OTHER": "أخرى",
+}
+
 
 def generate_clearance_pdf(statement, charges):
     """
@@ -45,6 +57,7 @@ def generate_clearance_pdf(statement, charges):
                 "owner_name": owner_name,
                 "requester_name": requester_name,
                 "charges": charges,
+                "charge_type_ar": CHARGE_TYPE_LABELS_AR,
             },
         )
         pdf_bytes = weasyprint.HTML(string=html).write_pdf()
