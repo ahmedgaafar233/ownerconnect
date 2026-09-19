@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required on Android 13+ for FirebaseMessaging.requestPermission() to
+         actually surface the system notification-permission prompt. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="owner_connect"
         android:name="${applicationName}"

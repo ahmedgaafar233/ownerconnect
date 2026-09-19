@@ -10,6 +10,7 @@ import '../../features/notifications/data/repositories/notification_repository.d
 import '../../features/support/data/repositories/support_repository.dart';
 import '../localization/locale_cubit.dart';
 import '../network/dio_client.dart';
+import '../services/fcm_service.dart';
 
 /// Everything the widget tree needs, built once before runApp. Keeps
 /// main.dart down to "load dependencies, run the app" — no env/Firebase/DI
@@ -19,6 +20,7 @@ class AppDependencies {
   final FinancialRepository financialRepository;
   final SupportRepository supportRepository;
   final NotificationRepository notificationRepository;
+  final FcmService fcmService;
   final LocaleCubit localeCubit;
 
   const AppDependencies({
@@ -26,6 +28,7 @@ class AppDependencies {
     required this.financialRepository,
     required this.supportRepository,
     required this.notificationRepository,
+    required this.fcmService,
     required this.localeCubit,
   });
 
@@ -68,6 +71,7 @@ class AppDependencies {
       financialRepository: FinancialRepository(dio: dioClient.dio),
       supportRepository: SupportRepository(dio: dioClient.dio),
       notificationRepository: NotificationRepository(dio: dioClient.dio),
+      fcmService: FcmService(dioClient.dio),
     );
   }
 }

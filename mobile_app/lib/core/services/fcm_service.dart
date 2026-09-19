@@ -17,10 +17,14 @@ class FcmService {
   final Dio _dio;
 
   /// Invoked on every foreground push so the caller can refresh e.g. the
-  /// notifications bell badge while the app is open.
-  final void Function(RemoteMessage message)? onForegroundMessage;
+  /// notifications bell badge while the app is open. Mutable rather than a
+  /// constructor param: this service is built once in AppDependencies
+  /// (bootstrap, before the widget tree — and therefore before
+  /// NotificationBloc — exists), so the owning widget assigns this once
+  /// it's created its own bloc instance.
+  void Function(RemoteMessage message)? onForegroundMessage;
 
-  FcmService(this._dio, {this.onForegroundMessage});
+  FcmService(this._dio);
 
   /// Initializes FCM permissions, handlers, and token registration.
   Future<void> initialize() async {
