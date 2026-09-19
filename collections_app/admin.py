@@ -4,6 +4,7 @@ from django.contrib import admin, messages
 from django.db import transaction
 from django.db.models import Sum, F, Value, DecimalField
 from django.db.models.functions import Coalesce
+from django.utils.html import format_html
 
 from billing.models import Charge
 from core.permissions import SupervisorAdminMixin
@@ -56,12 +57,19 @@ def auto_allocate_fifo(modeladmin, request, queryset):
 @admin.register(Payment)
 class PaymentAdmin(SupervisorAdminMixin, admin.ModelAdmin):
     """Supervisor+ can view payments. FM+ can add/change."""
-    list_display = ("id", "resort", "unit", "receipt_no", "total_amount", "allocated_total", "paid_at", "created_by")
+    list_display = ("id", "resort", "unit", "receipt_no", "total_amount", "allocated_total", "paid_at", "created_by", "receipt_pdf_link")
     list_filter = ("resort",)
     search_fields = ("receipt_no", "unit__unit_key", "unit__building_no", "unit__unit_no")
     autocomplete_fields = ("unit",)
+    readonly_fields = ("receipt_pdf_link",)
     inlines = (PaymentAllocationInline,)
     actions = [auto_allocate_fifo]
+
+    @admin.display(description="Receipt PDF")
+    def receipt_pdf_link(self, obj):
+        if not obj.receipt_pdf:
+            return "—"
+        return format_html('<a href="{}" target="_blank">تحميل الإيصال</a>', obj.receipt_pdf.url)
 
     def has_add_permission(self, request):
         if request.user.is_superuser:

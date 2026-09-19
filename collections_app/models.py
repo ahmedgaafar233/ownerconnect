@@ -113,6 +113,12 @@ class Payment(models.Model):
     receipt_no = models.CharField(max_length=100)  # رقم الإيصال الورقي
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)])
 
+    # Generated once at payment time and never regenerated — the legal
+    # record of what was paid, so it must stay frozen even if the
+    # underlying charges get edited later. Best-effort: null if generation
+    # failed (see collections_app/receipts.py).
+    receipt_pdf = models.FileField(upload_to="receipts/%Y/%m/", null=True, blank=True)
+
     paid_at = models.DateTimeField(default=timezone.now)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>إيصال دفع - {{ payment.receipt_no }}</title>
+    <style>
+        body {
+            font-family: 'Noto Sans Arabic', 'Noto Kufi Arabic', sans-serif;
+            margin: 0;
+            padding: 40px;
+            color: #1a202c;
+            line-height: 1.5;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            border-bottom: 4px solid #1a202c;
+            padding-bottom: 20px;
+        }
+        .header h1 { margin: 0; font-size: 26px; font-weight: 900; }
+        .header p { margin: 5px 0; color: #4a5568; font-weight: 700; }
+
+        .receipt-no {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .receipt-no span {
+            display: inline-block;
+            background: #1a202c;
+            color: white;
+            padding: 10px 24px;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 900;
+            letter-spacing: 1px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 30px;
+        }
+        .info-box {
+            background: #f7fafc;
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid #edf2f7;
+        }
+        .info-box h3 { margin: 0 0 8px 0; font-size: 12px; color: #718096; text-transform: uppercase; }
+        .info-box p { margin: 0; font-size: 16px; font-weight: 700; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        th {
+            background: #1a202c;
+            color: white;
+            text-align: right;
+            padding: 12px;
+            font-size: 14px;
+        }
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #edf2f7;
+            font-size: 14px;
+        }
+
+        .total-box {
+            background: #1a202c;
+            color: white;
+            padding: 20px 25px;
+            border-radius: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 20px;
+            font-weight: 900;
+        }
+
+        .footer {
+            margin-top: 60px;
+            text-align: center;
+            font-size: 11px;
+            color: #a0aec0;
+            border-top: 1px solid #edf2f7;
+            padding-top: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{ resort.name }}</h1>
+        <p>إيصال دفع</p>
+    </div>
+
+    <div class="receipt-no">
+        <span>رقم الإيصال: {{ payment.receipt_no }}</span>
+    </div>
+
+    <div class="info-grid">
+        <div class="info-box">
+            <h3>الوحدة</h3>
+            <p>{{ unit.unit_key }}</p>
+        </div>
+        <div class="info-box">
+            <h3>اسم المالك</h3>
+            <p>{{ owner_name|default:"-" }}</p>
+        </div>
+        <div class="info-box">
+            <h3>تاريخ الدفع</h3>
+            <p>{{ payment.paid_at|date:"Y-m-d H:i" }}</p>
+        </div>
+        <div class="info-box">
+            <h3>طريقة الدفع</h3>
+            <p>{{ channel_label }}</p>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>البند</th>
+                <th>الفترة</th>
+                <th>المبلغ</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for allocation in allocations %}
+            <tr>
+                <td>{{ allocation.charge.get_type_display }}</td>
+                <td>{% if allocation.charge.month %}{{ allocation.charge.get_month_display }} {% endif %}{{ allocation.charge.year }}</td>
+                <td>{{ allocation.amount|floatformat:2 }} EGP</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="total-box">
+        <span>الإجمالي المدفوع</span>
+        <span>{{ payment.total_amount|floatformat:2 }} EGP</span>
+    </div>
+
+    {% if payment.notes %}
+    <p style="margin-top: 24px; font-size: 13px; color: #4a5568;">ملاحظات: {{ payment.notes }}</p>
+    {% endif %}
+
+    <div class="footer">
+        تم إصدار هذا الإيصال آليًا من نظام إدارة OwnerConnect وقت السداد، ولا يتغير محتواه بعد ذلك.
+    </div>
+</body>
+</html>

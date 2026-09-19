@@ -7,6 +7,7 @@ from django.db.models.functions import Coalesce
 from decimal import Decimal
 from django.http import HttpResponseForbidden
 from collections_app.models import Payment, PaymentAllocation
+from collections_app.receipts import generate_receipt_pdf
 from billing.models import Charge
 
 
@@ -319,7 +320,9 @@ def record_payment_view(request):
                         charge=alloc_data["charge"],
                         amount=alloc_data["amount"]
                     )
-            
+
+            generate_receipt_pdf(payment)
+
             payment_success = True
             last_receipt = receipt_no
             paid_amount = total_payment_amount

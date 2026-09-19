@@ -33,6 +33,7 @@ from core.notifications import notify_unit_counterparts, notify_user
 from users.models import User
 
 from .models import Payment, PaymentAllocation, PaymentSession
+from .receipts import generate_receipt_pdf
 
 logger = logging.getLogger("collections_app")
 
@@ -431,6 +432,11 @@ class PaymentWebhookAPIView(APIView):
                     merchant_order_id,
                     session.amount,
                 )
+
+            # Generated after the transaction commits — PDF rendering is
+            # slow-ish and must not hold the row lock, and a rendering bug
+            # must never roll back a payment that already succeeded.
+            generate_receipt_pdf(payment)
 
             return Response(
                 {"status": "success", "receipt_no": receipt_no},

@@ -124,6 +124,7 @@ class PaymentHistorySerializer(serializers.ModelSerializer):
     unit_key = serializers.CharField(source="unit.unit_key", read_only=True)
     resort_name = serializers.CharField(source="resort.name", read_only=True)
     allocations = PaymentAllocationSerializer(many=True, read_only=True)
+    receipt_pdf_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Payment
@@ -134,9 +135,16 @@ class PaymentHistorySerializer(serializers.ModelSerializer):
             "resort",
             "resort_name",
             "receipt_no",
+            "receipt_pdf_url",
             "total_amount",
             "paid_at",
             "notes",
             "allocations",
             "created_at",
         )
+
+    def get_receipt_pdf_url(self, obj):
+        if not obj.receipt_pdf:
+            return None
+        request = self.context.get("request")
+        return request.build_absolute_uri(obj.receipt_pdf.url) if request else obj.receipt_pdf.url
