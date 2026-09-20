@@ -9,6 +9,7 @@ import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
 import '../widgets/otp_box_field.dart';
+import '../../../../core/widgets/app_loading_indicator.dart';
 
 /// Shown right after a Google/Email sign-in the backend doesn't recognize
 /// yet (AccountLinkRequiredState) — collects the phone number staff already
@@ -62,6 +63,7 @@ class _AccountLinkScreenState extends State<AccountLinkScreen> {
                   IntlPhoneField(
                     decoration: InputDecoration(
                       labelText: loc.translate('phone_hint'),
+                      counterText: '',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     initialCountryCode: 'EG',
@@ -75,11 +77,7 @@ class _AccountLinkScreenState extends State<AccountLinkScreen> {
                   ElevatedButton(
                     onPressed: isLoading || _phone == null || _code.length != 6 ? null : () => _submit(context),
                     child: isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                          )
+                        ? const AppLoadingIndicator(size: 20, strokeWidth: 2)
                         : Text(loc.translate('continue_button')),
                   ),
                 ],

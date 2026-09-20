@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/utils/media_url.dart';
 import '../../data/repositories/auth_repository.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
@@ -197,6 +198,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final profile = await repository.fetchAndPersistProfile();
       final resortId = profile['resort'];
       final resortName = profile['resort_name'] as String?;
+      final resortLogoUrl = resolveMediaUrl(profile['resort_logo_url'] as String?);
 
       if (resortId == null) {
         emit(AwaitingResortAssignmentState(userId: profile['id'] as int));
@@ -206,6 +208,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           role: profile['role'] as String,
           resortId: resortId as int,
           resortName: resortName ?? '',
+          resortLogoUrl: resortLogoUrl,
         ));
       }
     } catch (e) {

@@ -30,20 +30,31 @@ class PassQrDialog extends StatelessWidget {
               style: const TextStyle(fontSize: 16, color: AppColors.textPrimary),
             ),
             const SizedBox(height: 16),
-            QrImageView(
-              data: pass.passCode,
-              version: QrVersions.auto,
-              size: 200.0,
+            // A QR code must stay black-on-white regardless of the app's dark
+            // theme — the security/recreation gate scanner needs maximum
+            // contrast, not brand consistency.
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: QrImageView(
+                data: pass.passCode,
+                version: QrVersions.auto,
+                size: 200.0,
+                backgroundColor: Colors.white,
+              ),
             ),
             const SizedBox(height: 16),
             Text(
-              'Code: ${pass.passCode}',
+              '${loc.translate('pass_code_label')}: ${pass.passCode}',
               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close'),
+              child: Text(loc.translate('close_button')),
             ),
           ],
         ),

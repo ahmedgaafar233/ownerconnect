@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.db.models import Q
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, status
@@ -298,6 +299,63 @@ class ClearanceGenerateView(APIView):
         return Response(
             ClearanceStatementSerializer(statement, context={"request": request}).data,
             status=status.HTTP_201_CREATED,
+        )
+
+
+class PaymentReceiptDownloadView(APIView):
+    """
+    Streams a payment's receipt PDF after checking access — never served as
+    a bare public /media/ file. That file used to be reachable straight off
+    nginx/Django's static media serving with no auth at all, and its name
+    (receipt-<payment.id>.pdf) is a sequential, guessable integer, so anyone
+    could previously enumerate every resort's receipts with zero login.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        user = request.user
+        tenant = getattr(request, "tenant", None)
+        payment = get_object_or_404(Payment, pk=pk)
+
+        if user.role in (User.Role.OWNER, User.Role.TENANT):
+            if not OwnerUnit.objects.filter(owner=user, unit_id=payment.unit_id).exists():
+                raise Http404
+        elif not user.is_superuser:
+            if not tenant or payment.resort_id != tenant.id:
+                raise Http404
+
+        if not payment.receipt_pdf:
+            raise Http404
+
+        return FileResponse(
+            payment.receipt_pdf.open("rb"),
+            content_type="application/pdf",
+            filename=f"receipt-{payment.id}.pdf",
+        )
+
+
+class ClearancePdfDownloadView(APIView):
+    """Same reasoning as PaymentReceiptDownloadView, for clearance-statement PDFs."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        user = request.user
+        tenant = getattr(request, "tenant", None)
+        statement = get_object_or_404(ClearanceStatement.objects.select_related("unit"), pk=pk)
+
+        if statement.requested_by_id != user.id:
+            if user.is_superuser:
+                pass
+            elif not tenant or statement.unit.resort_id != tenant.id:
+                raise Http404
+
+        if not statement.pdf:
+            raise Http404
+
+        return FileResponse(
+            statement.pdf.open("rb"),
+            content_type="application/pdf",
+            filename=f"clearance-{statement.id}.pdf",
         )
 
 

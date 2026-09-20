@@ -13,13 +13,21 @@ class UnitSerializer(serializers.ModelSerializer):
 class MeSerializer(serializers.ModelSerializer):
     units = serializers.SerializerMethodField()
     resort_name = serializers.SerializerMethodField()
+    resort_logo_url = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ("id", "phone", "fullname", "role", "resort", "resort_name", "units")
+        fields = ("id", "phone", "fullname", "role", "resort", "resort_name", "resort_logo_url", "units")
 
     def get_resort_name(self, obj: User):
         return obj.resort.name if obj.resort_id else None
+
+    def get_resort_logo_url(self, obj: User):
+        if not obj.resort_id or not obj.resort.logo:
+            return None
+        request = self.context.get("request")
+        url = obj.resort.logo.url
+        return request.build_absolute_uri(url) if request else url
 
     def get_units(self, obj: User):
         if obj.role not in (User.Role.OWNER, User.Role.TENANT):

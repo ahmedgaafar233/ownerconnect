@@ -32,7 +32,7 @@ class HasBalanceFilter(admin.SimpleListFilter):
 @admin.register(Resort)
 class ResortAdmin(admin.ModelAdmin):
     """Only superusers can manage resorts."""
-    list_display = ("id", "name", "is_active", "created_at")
+    list_display = ("id", "name", "is_active", "logo", "created_at")
     search_fields = ("name",)
 
     def has_add_permission(self, request):

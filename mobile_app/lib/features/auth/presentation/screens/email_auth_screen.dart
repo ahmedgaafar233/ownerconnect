@@ -6,6 +6,7 @@ import '../../../../core/utils/app_localizations.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
+import '../../../../core/widgets/app_loading_indicator.dart';
 
 /// Free Firebase sign-in path (no SMS/Blaze billing required). Firebase
 /// itself doesn't need email verification here — the real proof of
@@ -82,11 +83,7 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
                   ElevatedButton(
                     onPressed: isLoading ? null : () => _submit(context),
                     child: isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                          )
+                        ? const AppLoadingIndicator(size: 20, strokeWidth: 2)
                         : Text(loc.translate(_isRegisterMode ? 'register_button' : 'sign_in_button')),
                   ),
                   const SizedBox(height: 12),

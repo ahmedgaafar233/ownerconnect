@@ -1,0 +1,14 @@
+<svg width="116" height="116" viewBox="0 0 116 116" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="owcBadgeGrad" x1="0" y1="0" x2="116" y2="116" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#19E3C2" stop-opacity="0.20"/>
+      <stop offset="1" stop-color="#09101A" stop-opacity="0.94"/>
+    </linearGradient>
+  </defs>
+  <rect x="1" y="1" width="114" height="114" rx="36" fill="url(#owcBadgeGrad)" stroke="#19E3C2" stroke-opacity="0.42" stroke-width="1.5"/>
+  <text x="58" y="66" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="35" font-weight="700" letter-spacing="-1" fill="#F3F6FB">OWC</text>
+  <path d="M20 84 Q48 101 72 86 T104 78" fill="none" stroke="#19E3C2" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="20" cy="84" r="2.4" fill="#19E3C2"/>
+  <circle cx="72" cy="86" r="2.4" fill="#19E3C2"/>
+  <circle cx="104" cy="78" r="3.4" fill="#F5A623"/>
+</svg>

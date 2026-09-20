@@ -6,15 +6,18 @@ from django.conf.urls.static import static
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
+from core.public_views import ResortListView
 from users.views import ActivateView, MeView, GenerateActivationCodeView, FirebaseAuthView, FCMTokenRegisterView
 from billing.views import (
     ChargeDeferView,
     ChargeSummaryView,
     ClearanceGenerateView,
     ClearanceListView,
+    ClearancePdfDownloadView,
     OwnerChargeListView,
     OwnerPaymentHistoryView,
     PaymentPlanListCreateView,
+    PaymentReceiptDownloadView,
 )
 from collections_app.api_views import InitiateOnlinePaymentAPIView, PaymentWebhookAPIView
 from core.views import unit_statement_view, unit_search_view, unit_detail_view
@@ -49,6 +52,9 @@ urlpatterns = [
     path("api/auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
 
+    # Public
+    path("api/resorts/", ResortListView.as_view(), name="resort_list"),
+
     # Profile, Charges & Payments APIs
     path("api/me/", MeView.as_view(), name="me"),
     path("api/charges/", OwnerChargeListView.as_view(), name="owner_charges"),
@@ -57,7 +63,9 @@ urlpatterns = [
     path("api/payment-plans/", PaymentPlanListCreateView.as_view(), name="payment_plans"),
     path("api/clearance/generate/", ClearanceGenerateView.as_view(), name="clearance_generate"),
     path("api/clearance/", ClearanceListView.as_view(), name="clearance_list"),
+    path("api/clearance/<int:pk>/pdf/", ClearancePdfDownloadView.as_view(), name="clearance_pdf_download"),
     path("api/payments/", OwnerPaymentHistoryView.as_view(), name="owner_payments"),
+    path("api/payments/<int:pk>/receipt/", PaymentReceiptDownloadView.as_view(), name="payment_receipt_download"),
     path("api/payments/initiate/", InitiateOnlinePaymentAPIView.as_view(), name="initiate_payment"),
     path("api/payments/webhook/", PaymentWebhookAPIView.as_view(), name="payment_webhook"),
 
@@ -75,4 +83,11 @@ urlpatterns = [
 ]
 
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    # Mirrors nginx.conf in production: only resort branding is public.
+    # Receipts/clearance PDFs/ticket attachments must go through their
+    # authenticated download views even in dev, or this fix would only ever
+    # be exercised in production and never actually tested locally.
+    urlpatterns += static(
+        settings.MEDIA_URL + "resort_logos/",
+        document_root=str(settings.MEDIA_ROOT / "resort_logos"),
+    )

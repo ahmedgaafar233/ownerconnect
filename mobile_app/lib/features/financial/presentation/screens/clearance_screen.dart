@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_localizations.dart';
+import '../../../../core/utils/file_download.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../data/models/clearance_model.dart';
 import '../bloc/clearance_bloc.dart';
 import '../bloc/clearance_event.dart';
 import '../bloc/clearance_state.dart';
+import '../../../../core/widgets/app_loading_indicator.dart';
 
 class ClearanceScreen extends StatefulWidget {
   const ClearanceScreen({Key? key}) : super(key: key);
@@ -70,13 +71,21 @@ class _ClearanceScreenState extends State<ClearanceScreen> {
         );
   }
 
-  Future<void> _openPdf(String url) async {
-    final uri = Uri.parse(url);
-    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!launched && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context).translate('download_receipt')), backgroundColor: AppColors.error),
-      );
+  Future<void> _openPdf(int statementId, String url) async {
+    try {
+      final bytes = await context.read<ClearanceBloc>().repository.downloadFile(url);
+      final opened = await saveAndOpenFile(bytes, 'clearance-$statementId.pdf');
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context).translate('download_receipt')), backgroundColor: AppColors.error),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context).translate('download_receipt')), backgroundColor: AppColors.error),
+        );
+      }
     }
   }
 
@@ -87,7 +96,7 @@ class _ClearanceScreenState extends State<ClearanceScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(loc.translate('clearance_title'))),
       body: _isLoadingUnits
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: AppLoadingIndicator())
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
@@ -135,11 +144,7 @@ class _ClearanceScreenState extends State<ClearanceScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
                         child: isLoading
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                              )
+                            ? const AppLoadingIndicator(size: 20, strokeWidth: 2)
                             : Text(
                                 loc.translate('generate_clearance'),
                                 style: const TextStyle(color: Colors.white, fontSize: 16),
@@ -155,7 +160,10 @@ class _ClearanceScreenState extends State<ClearanceScreen> {
                       return Text(state.generateError ?? '', style: const TextStyle(color: AppColors.error));
                     }
                     if (state.latestStatement != null) {
-                      return _StatementCard(statement: state.latestStatement!, onDownload: _openPdf);
+                      return _StatementCard(
+                        statement: state.latestStatement!,
+                        onDownload: (url) => _openPdf(state.latestStatement!.id, url),
+                      );
                     }
                     return const SizedBox.shrink();
                   },
@@ -168,7 +176,7 @@ class _ClearanceScreenState extends State<ClearanceScreen> {
                     if (state.historyStatus == ClearanceHistoryStatus.loading) {
                       return const Padding(
                         padding: EdgeInsets.all(16),
-                        child: Center(child: CircularProgressIndicator()),
+                        child: Center(child: AppLoadingIndicator()),
                       );
                     }
                     if (state.history.isEmpty) {
@@ -179,7 +187,7 @@ class _ClearanceScreenState extends State<ClearanceScreen> {
                     }
                     return Column(
                       children: state.history
-                          .map((s) => _StatementCard(statement: s, onDownload: _openPdf, compact: true))
+                          .map((s) => _StatementCard(statement: s, onDownload: (url) => _openPdf(s.id, url), compact: true))
                           .toList(),
                     );
                   },

@@ -1,15 +1,21 @@
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/auth/data/resort_selection.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/auth/presentation/bloc/auth_state.dart';
 import '../../features/auth/presentation/screens/account_link_screen.dart';
 import '../../features/auth/presentation/screens/otp_verification_screen.dart';
 import '../../features/auth/presentation/screens/pending_resort_screen.dart';
 import '../../features/auth/presentation/screens/phone_entry_screen.dart';
+import '../../features/auth/presentation/screens/resort_picker_screen.dart';
+import '../../features/auth/presentation/screens/resort_welcome_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/home/presentation/screens/home_shell.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
 import 'go_router_refresh_stream.dart';
+
+const _resortPickerFlow = {'/select-resort', '/welcome-resort'};
 
 /// The single tenant-lock gate for the whole app: every route decision comes
 /// from AuthBloc's state, never from a screen navigating on its own. This is
@@ -17,10 +23,10 @@ import 'go_router_refresh_stream.dart';
 /// owner's own resort — see AuthenticatedState.resortName consumed by
 /// HomeShell.
 class AppRouter {
-  static GoRouter build(AuthBloc authBloc) {
+  static GoRouter build(AuthBloc authBloc, ResortSelection resortSelection) {
     return GoRouter(
       initialLocation: '/splash',
-      refreshListenable: GoRouterRefreshStream(authBloc.stream),
+      refreshListenable: Listenable.merge([GoRouterRefreshStream(authBloc.stream), resortSelection]),
       redirect: (context, state) {
         final authState = authBloc.state;
         final location = state.matchedLocation;
@@ -29,6 +35,15 @@ class AppRouter {
           return location == '/splash' ? null : '/splash';
         }
         if (authState is UnauthenticatedState) {
+          // First launch (no resort ever picked): show the resort picker →
+          // welcome screen before login. Once a resort's been picked
+          // (this run or a previous one), skip straight to /login — this is
+          // purely local branding state, never a tenant switch (see
+          // ResortSelection's doc comment).
+          if (resortSelection.value == null) {
+            return _resortPickerFlow.contains(location) ? null : '/select-resort';
+          }
+          if (_resortPickerFlow.contains(location)) return null;
           return location == '/login' ? null : '/login';
         }
         if (authState is OtpSentState) {
@@ -53,6 +68,8 @@ class AppRouter {
       },
       routes: [
         GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
+        GoRoute(path: '/select-resort', builder: (_, __) => const ResortPickerScreen()),
+        GoRoute(path: '/welcome-resort', builder: (_, __) => const ResortWelcomeScreen()),
         GoRoute(path: '/login', builder: (_, __) => const PhoneEntryScreen()),
         GoRoute(path: '/otp', builder: (_, __) => const OtpVerificationScreen()),
         GoRoute(path: '/link-account', builder: (_, __) => const AccountLinkScreen()),

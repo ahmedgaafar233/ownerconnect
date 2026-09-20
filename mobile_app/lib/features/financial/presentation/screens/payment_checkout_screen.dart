@@ -5,6 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_localizations.dart';
 import '../bloc/financial_bloc.dart';
 import '../bloc/financial_event.dart';
+import '../../../../core/widgets/app_loading_indicator.dart';
 
 class PaymentCheckoutScreen extends StatefulWidget {
   final String checkoutUrl;
@@ -135,7 +136,7 @@ class _PaymentCheckoutScreenState extends State<PaymentCheckoutScreen> {
           WebViewWidget(controller: _controller),
           if (_isLoading)
             const Center(
-              child: CircularProgressIndicator(),
+              child: AppLoadingIndicator(),
             ),
         ],
       ),

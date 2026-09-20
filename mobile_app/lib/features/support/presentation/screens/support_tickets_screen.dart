@@ -6,6 +6,8 @@ import '../bloc/support_bloc.dart';
 import '../bloc/support_event.dart';
 import '../bloc/support_state.dart';
 import '../widgets/ticket_card.dart';
+import '../../../../core/widgets/app_loading_indicator.dart';
+import 'new_support_request_screen.dart';
 
 class SupportTicketsScreen extends StatefulWidget {
   const SupportTicketsScreen({Key? key}) : super(key: key);
@@ -56,9 +58,9 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
         title: Text(loc.translate('tickets_title')),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          // Open Ticket creation sheet/dialog
-        },
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const NewSupportRequestScreen()),
+        ),
         backgroundColor: AppColors.secondary,
         icon: const Icon(Icons.add),
         label: Text(loc.translate('create_ticket')),
@@ -66,7 +68,7 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
       body: BlocBuilder<SupportBloc, SupportState>(
         builder: (context, state) {
           if (state is SupportLoadingState) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: AppLoadingIndicator());
           } else if (state is TicketsLoadedState) {
             if (state.tickets.isEmpty) {
               return Center(child: Text(loc.translate('no_tickets')));
@@ -80,7 +82,7 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
                 if (index >= state.tickets.length) {
                   return const Padding(
                     padding: EdgeInsets.all(16.0),
-                    child: Center(child: CircularProgressIndicator()),
+                    child: Center(child: AppLoadingIndicator()),
                   );
                 }
                 return TicketCard(ticket: state.tickets[index]);

@@ -4,6 +4,7 @@ from django.contrib import admin, messages
 from django.db import transaction
 from django.db.models import Sum, F, Value, DecimalField
 from django.db.models.functions import Coalesce
+from django.urls import reverse
 from django.utils.html import format_html
 
 from billing.models import Charge
@@ -69,7 +70,12 @@ class PaymentAdmin(SupervisorAdminMixin, admin.ModelAdmin):
     def receipt_pdf_link(self, obj):
         if not obj.receipt_pdf:
             return "—"
-        return format_html('<a href="{}" target="_blank">تحميل الإيصال</a>', obj.receipt_pdf.url)
+        # Routed through the authenticated download view — the raw /media/
+        # path is no longer served publicly (see PaymentReceiptDownloadView).
+        return format_html(
+            '<a href="{}" target="_blank">تحميل الإيصال</a>',
+            reverse("payment_receipt_download", args=[obj.id]),
+        )
 
     def has_add_permission(self, request):
         if request.user.is_superuser:

@@ -6,6 +6,7 @@ import '../bloc/support_bloc.dart';
 import '../bloc/support_event.dart';
 import '../bloc/support_state.dart';
 import '../widgets/pass_qr_dialog.dart';
+import '../../../../core/widgets/app_loading_indicator.dart';
 
 class VisitorPassesScreen extends StatefulWidget {
   const VisitorPassesScreen({Key? key}) : super(key: key);
@@ -40,7 +41,7 @@ class _VisitorPassesScreenState extends State<VisitorPassesScreen> {
       body: BlocBuilder<SupportBloc, SupportState>(
         builder: (context, state) {
           if (state is SupportLoadingState) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: AppLoadingIndicator());
           } else if (state is VisitorPassesLoadedState) {
             if (state.passes.isEmpty) {
               return Center(child: Text(loc.translate('no_passes')));

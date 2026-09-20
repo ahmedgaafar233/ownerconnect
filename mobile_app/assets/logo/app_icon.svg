@@ -1,0 +1,28 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FCF9F1"/>
+      <stop offset="1" stop-color="#EFE4C8"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="230" y1="220" x2="800" y2="700" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1A5FE0"/>
+      <stop offset="1" stop-color="#2E8BFF"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="30%" cy="20%" r="60%">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect width="1024" height="1024" fill="url(#glow)"/>
+
+  <!-- soft shadow beneath the mark for depth -->
+  <ellipse cx="522" cy="705" rx="230" ry="34" fill="#1A5FE0" opacity="0.14"/>
+
+  <!-- hub ring + signature swoosh, same brand mark used in-app -->
+  <circle cx="512" cy="452" r="208" fill="none" stroke="url(#ring)" stroke-width="62"/>
+  <path d="M334 612 Q512 752 696 606" fill="none" stroke="#1A2233" stroke-width="46" stroke-linecap="round"/>
+  <circle cx="334" cy="612" r="27" fill="#1A2233"/>
+  <circle cx="696" cy="606" r="50" fill="#2EE7FF"/>
+</svg>

@@ -4,11 +4,14 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../firebase_options.dart';
 import '../../features/auth/data/repositories/firebase_auth_repository.dart';
+import '../../features/auth/data/repositories/resort_repository.dart';
+import '../../features/auth/data/resort_selection.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/financial/data/repositories/financial_repository.dart';
 import '../../features/notifications/data/repositories/notification_repository.dart';
 import '../../features/support/data/repositories/support_repository.dart';
-import '../localization/locale_cubit.dart';
+import '../localization/locale_bloc.dart';
+import '../localization/locale_event.dart';
 import '../network/dio_client.dart';
 import '../services/fcm_service.dart';
 
@@ -21,7 +24,9 @@ class AppDependencies {
   final SupportRepository supportRepository;
   final NotificationRepository notificationRepository;
   final FcmService fcmService;
-  final LocaleCubit localeCubit;
+  final LocaleBloc localeBloc;
+  final ResortRepository resortRepository;
+  final ResortSelection resortSelection;
 
   const AppDependencies({
     required this.authBloc,
@@ -29,7 +34,9 @@ class AppDependencies {
     required this.supportRepository,
     required this.notificationRepository,
     required this.fcmService,
-    required this.localeCubit,
+    required this.localeBloc,
+    required this.resortRepository,
+    required this.resortSelection,
   });
 
   static Future<AppDependencies> bootstrap() async {
@@ -62,16 +69,22 @@ class AppDependencies {
     final dioClient = DioClient();
     final authRepository = FirebaseAuthRepository(dio: dioClient.dio);
 
-    final localeCubit = LocaleCubit();
-    await localeCubit.load();
+    final localeBloc = LocaleBloc();
+    final localeLoaded = localeBloc.stream.first;
+    localeBloc.add(const LocaleLoadRequested());
+    await localeLoaded;
+
+    final resortSelection = await ResortSelection.load();
 
     return AppDependencies(
       authBloc: AuthBloc(repository: authRepository),
-      localeCubit: localeCubit,
+      localeBloc: localeBloc,
       financialRepository: FinancialRepository(dio: dioClient.dio),
       supportRepository: SupportRepository(dio: dioClient.dio),
       notificationRepository: NotificationRepository(dio: dioClient.dio),
       fcmService: FcmService(dioClient.dio),
+      resortRepository: ResortRepository(dio: dioClient.dio),
+      resortSelection: resortSelection,
     );
   }
 }

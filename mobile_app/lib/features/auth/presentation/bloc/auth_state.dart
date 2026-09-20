@@ -35,16 +35,18 @@ class AuthenticatedState extends AuthState {
   final String role;
   final int resortId;
   final String resortName;
+  final String? resortLogoUrl;
 
   const AuthenticatedState({
     required this.userId,
     required this.role,
     required this.resortId,
     required this.resortName,
+    this.resortLogoUrl,
   });
 
   @override
-  List<Object?> get props => [userId, role, resortId, resortName];
+  List<Object?> get props => [userId, role, resortId, resortName, resortLogoUrl];
 }
 
 /// Signed in but `resort` is still null on the backend — the account exists

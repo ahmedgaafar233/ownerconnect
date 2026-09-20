@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.urls import reverse
 from django.utils import timezone
 from rest_framework import serializers
 from .models import Charge, ClearanceStatement, PaymentDeferral, PaymentPlan, PaymentPlanInstallment
@@ -146,8 +147,12 @@ class PaymentHistorySerializer(serializers.ModelSerializer):
     def get_receipt_pdf_url(self, obj):
         if not obj.receipt_pdf:
             return None
+        # Points at the authenticated download view, never the raw /media/
+        # path — that path is no longer served publicly (see
+        # PaymentReceiptDownloadView).
         request = self.context.get("request")
-        return request.build_absolute_uri(obj.receipt_pdf.url) if request else obj.receipt_pdf.url
+        path = reverse("payment_receipt_download", args=[obj.id])
+        return request.build_absolute_uri(path) if request else path
 
 
 class ClearanceStatementSerializer(serializers.ModelSerializer):
@@ -175,4 +180,5 @@ class ClearanceStatementSerializer(serializers.ModelSerializer):
         if not obj.pdf:
             return None
         request = self.context.get("request")
-        return request.build_absolute_uri(obj.pdf.url) if request else obj.pdf.url
+        path = reverse("clearance_pdf_download", args=[obj.id])
+        return request.build_absolute_uri(path) if request else path

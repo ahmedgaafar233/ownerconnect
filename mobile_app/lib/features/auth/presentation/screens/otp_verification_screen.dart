@@ -9,6 +9,7 @@ import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
 import '../widgets/otp_box_field.dart';
+import '../../../../core/widgets/app_loading_indicator.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
   const OtpVerificationScreen({Key? key}) : super(key: key);
@@ -81,7 +82,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                     },
                   ),
                   const SizedBox(height: 24),
-                  if (isLoading) const Center(child: CircularProgressIndicator()),
+                  if (isLoading) const Center(child: AppLoadingIndicator()),
                   const SizedBox(height: 24),
                   Center(
                     child: _secondsLeft > 0

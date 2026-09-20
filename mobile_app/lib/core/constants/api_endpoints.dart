@@ -4,6 +4,7 @@ class ApiEndpoints {
   static const String tokenObtain = "/api/auth/token/";
   static const String tokenRefresh = "/api/auth/token/refresh/";
   static const String me = "/api/me/";
+  static const String resorts = "/api/resorts/";
 
   static const String charges = "/api/charges/";
   static const String chargesSummary = "/api/charges/summary/";

@@ -10,6 +10,7 @@ import '../widgets/charge_card.dart';
 import '../widgets/charge_summary_card.dart';
 import '../widgets/month_filter_bar.dart';
 import 'payment_options_screen.dart';
+import '../../../../core/widgets/app_loading_indicator.dart';
 
 class ChargesScreen extends StatefulWidget {
   const ChargesScreen({Key? key}) : super(key: key);
@@ -88,7 +89,7 @@ class _ChargesScreenState extends State<ChargesScreen> {
         },
         builder: (context, state) {
           if (state is FinancialLoadingState) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: AppLoadingIndicator());
           } else if (state is ChargesLoadedState) {
             if (state.charges.isEmpty) {
               return Column(
@@ -111,7 +112,7 @@ class _ChargesScreenState extends State<ChargesScreen> {
                       if (index >= state.charges.length) {
                         return const Padding(
                           padding: EdgeInsets.all(16.0),
-                          child: Center(child: CircularProgressIndicator()),
+                          child: Center(child: AppLoadingIndicator()),
                         );
                       }
                       final charge = state.charges[index];

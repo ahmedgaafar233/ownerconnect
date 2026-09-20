@@ -7,6 +7,7 @@ import '../../data/models/notification_model.dart';
 import '../bloc/notification_bloc.dart';
 import '../bloc/notification_event.dart';
 import '../bloc/notification_state.dart';
+import '../../../../core/widgets/app_loading_indicator.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({Key? key}) : super(key: key);
@@ -68,7 +69,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       body: BlocBuilder<NotificationBloc, NotificationState>(
         builder: (context, state) {
           if (state is NotificationLoadingState) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: AppLoadingIndicator());
           } else if (state is NotificationsLoadedState) {
             if (state.notifications.isEmpty) {
               return Center(child: Text(loc.translate('no_notifications_yet')));
@@ -84,7 +85,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   if (index >= state.notifications.length) {
                     return const Padding(
                       padding: EdgeInsets.all(16.0),
-                      child: Center(child: CircularProgressIndicator()),
+                      child: Center(child: AppLoadingIndicator()),
                     );
                   }
                   final notification = state.notifications[index];

@@ -126,4 +126,17 @@ class FinancialRepository {
     final results = response.data['results'] as List;
     return results.map((e) => ClearanceStatementModel.fromJson(e as Map<String, dynamic>)).toList();
   }
+
+  /// Receipt/clearance PDF URLs now point at authenticated download views
+  /// (they used to be plain public /media/ links — see the backend's
+  /// PaymentReceiptDownloadView/ClearancePdfDownloadView), so fetching them
+  /// has to go through this Dio instance — the only thing that carries the
+  /// Bearer token — rather than an external browser via url_launcher.
+  Future<List<int>> downloadFile(String url) async {
+    final response = await dio.get<List<int>>(
+      url,
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return response.data!;
+  }
 }

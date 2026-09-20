@@ -1,3 +1,4 @@
+from django.urls import reverse
 from rest_framework import serializers
 from .models import Ticket, Message, VisitorPass
 from core.models import Unit
@@ -23,6 +24,20 @@ class MessageSerializer(serializers.ModelSerializer):
             "created_at",
         )
         read_only_fields = ("id", "sender", "created_at")
+
+    def to_representation(self, instance):
+        # Uploads still go through the plain `attachment` FileField above —
+        # only the outgoing URL is swapped, to the authenticated download
+        # view rather than the raw /media/ path (see
+        # TicketAttachmentDownloadView).
+        data = super().to_representation(instance)
+        if instance.attachment:
+            request = self.context.get("request")
+            path = reverse("support:ticket_attachment_download", args=[instance.id])
+            data["attachment"] = request.build_absolute_uri(path) if request else path
+        else:
+            data["attachment"] = None
+        return data
 
 
 class TicketSerializer(serializers.ModelSerializer):

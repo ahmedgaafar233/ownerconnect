@@ -7,6 +7,7 @@ import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../support/presentation/bloc/support_bloc.dart';
 import '../../../support/presentation/bloc/support_event.dart';
 import '../../../support/presentation/bloc/support_state.dart';
+import '../../../../core/widgets/app_loading_indicator.dart';
 
 /// Reuses the already-fully-wired Ticket(category=OTHER) creation path
 /// (SupportBloc/CreateTicketEvent) — same mechanism PaymentOptionsScreen's
@@ -24,6 +25,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   final _messageController = TextEditingController();
   int? _unitId;
   bool _isLoadingUnit = true;
+  bool _hasLoadError = false;
 
   @override
   void initState() {
@@ -39,6 +41,10 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   }
 
   Future<void> _loadUnit() async {
+    setState(() {
+      _isLoadingUnit = true;
+      _hasLoadError = false;
+    });
     try {
       final profile = await context.read<AuthBloc>().repository.fetchAndPersistProfile();
       final units = profile['units'] as List?;
@@ -49,7 +55,12 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _isLoadingUnit = false);
+      if (mounted) {
+        setState(() {
+          _isLoadingUnit = false;
+          _hasLoadError = true;
+        });
+      }
     }
   }
 
@@ -91,7 +102,29 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
           final isSending = state is SupportLoadingState;
 
           if (_isLoadingUnit) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: AppLoadingIndicator());
+          }
+          if (_hasLoadError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      loc.translate('load_unit_error'),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: AppColors.textSecondary),
+                    ),
+                    const SizedBox(height: 16),
+                    OutlinedButton(
+                      onPressed: _loadUnit,
+                      child: Text(loc.translate('retry_button')),
+                    ),
+                  ],
+                ),
+              ),
+            );
           }
           if (_unitId == null) {
             return Center(child: Text(loc.translate('contact_us_no_unit')));
@@ -116,11 +149,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
                 ElevatedButton(
                   onPressed: isSending ? null : () => _submit(context),
                   child: isSending
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                        )
+                      ? const AppLoadingIndicator(size: 20, strokeWidth: 2)
                       : Text(loc.translate('submit_request')),
                 ),
               ],

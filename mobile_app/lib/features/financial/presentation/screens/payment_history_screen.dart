@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_localizations.dart';
+import '../../../../core/utils/file_download.dart';
 import '../../data/models/payment_model.dart';
 import '../bloc/financial_bloc.dart';
 import '../bloc/financial_event.dart';
 import '../bloc/financial_state.dart';
 import '../widgets/month_filter_bar.dart';
+import '../../../../core/widgets/app_loading_indicator.dart';
 
 class PaymentHistoryScreen extends StatefulWidget {
   const PaymentHistoryScreen({Key? key}) : super(key: key);
@@ -64,13 +65,21 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
     return currentScroll >= (maxScroll * 0.9);
   }
 
-  Future<void> _openReceipt(String url) async {
-    final uri = Uri.parse(url);
-    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!launched && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context).translate('download_receipt')), backgroundColor: AppColors.error),
-      );
+  Future<void> _openReceipt(int paymentId, String url) async {
+    try {
+      final bytes = await context.read<FinancialBloc>().repository.downloadFile(url);
+      final opened = await saveAndOpenFile(bytes, 'receipt-$paymentId.pdf');
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context).translate('download_receipt')), backgroundColor: AppColors.error),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context).translate('download_receipt')), backgroundColor: AppColors.error),
+        );
+      }
     }
   }
 
@@ -88,7 +97,7 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
       body: BlocBuilder<FinancialBloc, FinancialState>(
         builder: (context, state) {
           if (state is FinancialLoadingState) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: AppLoadingIndicator());
           } else if (state is PaymentHistoryLoadedState) {
             if (state.payments.isEmpty) {
               return Center(child: Text(loc.translate('no_payments_yet')));
@@ -100,12 +109,12 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
                 if (index >= state.payments.length) {
                   return const Padding(
                     padding: EdgeInsets.all(16.0),
-                    child: Center(child: CircularProgressIndicator()),
+                    child: Center(child: AppLoadingIndicator()),
                   );
                 }
                 return _PaymentTile(
                   payment: state.payments[index],
-                  onDownload: _openReceipt,
+                  onDownload: (url) => _openReceipt(state.payments[index].id, url),
                 );
               },
             );

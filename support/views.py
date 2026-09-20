@@ -1,9 +1,11 @@
-from django.http import Http404
+from django.http import FileResponse, Http404
+from django.shortcuts import get_object_or_404
 from rest_framework import status, generics
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 
 from core.models import Notification
@@ -160,6 +162,36 @@ class TicketMessageListCreateView(generics.ListCreateAPIView):
                 notif_type=Notification.Type.TICKET_REPLY,
                 data={"type": "ticket_reply", "ticket_id": ticket.id},
             )
+
+
+class TicketAttachmentDownloadView(APIView):
+    """
+    Streams a support-ticket message's attachment after checking access —
+    same reasoning as PaymentReceiptDownloadView: ticket_attachments/ used
+    to be reachable straight off public /media/ serving with no login.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        user = request.user
+        tenant = getattr(request, "tenant", None)
+        message = get_object_or_404(Message.objects.select_related("ticket"), pk=pk)
+        ticket = message.ticket
+
+        if user.role in (User.Role.OWNER, User.Role.TENANT):
+            if ticket.owner_id != user.id:
+                raise Http404
+        elif not user.is_superuser:
+            if not tenant or ticket.resort_id != tenant.id:
+                raise Http404
+
+        if not message.attachment:
+            raise Http404
+
+        return FileResponse(
+            message.attachment.open("rb"),
+            filename=message.attachment_name or message.attachment.name.rsplit("/", 1)[-1],
+        )
 
 
 class VisitorPassListCreateView(generics.ListCreateAPIView):

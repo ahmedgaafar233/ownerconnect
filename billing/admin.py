@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.core.exceptions import PermissionDenied
 from django.db.models import Sum, Value, DecimalField
 from django.db.models.functions import Coalesce
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
 from unfold.admin import ModelAdmin
@@ -104,7 +105,12 @@ class ClearanceStatementAdmin(SupervisorAdminMixin, ModelAdmin):
     def pdf_link(self, obj):
         if not obj.pdf:
             return "—"
-        return format_html('<a href="{}" target="_blank">تحميل المخالصة</a>', obj.pdf.url)
+        # Routed through the authenticated download view — the raw /media/
+        # path is no longer served publicly (see ClearancePdfDownloadView).
+        return format_html(
+            '<a href="{}" target="_blank">تحميل المخالصة</a>',
+            reverse("clearance_pdf_download", args=[obj.id]),
+        )
 
     def has_add_permission(self, request):
         return False

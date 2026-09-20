@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:provider/provider.dart';
 
 import 'core/bootstrap/app_dependencies.dart';
-import 'core/localization/locale_cubit.dart';
+import 'core/localization/locale_bloc.dart';
+import 'core/localization/locale_state.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/app_localizations.dart';
@@ -34,7 +36,7 @@ class _OwnerConnectAppState extends State<OwnerConnectApp> {
   // appeared to lose its just-created tickets after switching language,
   // because the entire navigation stack — not just the text — had been
   // rebuilt from scratch).
-  late final _routerConfig = AppRouter.build(widget.dependencies.authBloc);
+  late final _routerConfig = AppRouter.build(widget.dependencies.authBloc, widget.dependencies.resortSelection);
   late final NotificationBloc _notificationBloc =
       NotificationBloc(repository: widget.dependencies.notificationRepository);
 
@@ -58,45 +60,51 @@ class _OwnerConnectAppState extends State<OwnerConnectApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocProvider(
+    return MultiProvider(
       providers: [
-        BlocProvider.value(value: widget.dependencies.authBloc),
-        BlocProvider.value(value: widget.dependencies.localeCubit),
-        BlocProvider(create: (_) => FinancialBloc(repository: widget.dependencies.financialRepository)),
-        BlocProvider(create: (_) => SupportBloc(repository: widget.dependencies.supportRepository)),
-        BlocProvider.value(value: _notificationBloc),
+        RepositoryProvider.value(value: widget.dependencies.resortRepository),
+        // ResortSelection is a ValueNotifier — needs ChangeNotifierProvider
+        // (not a plain RepositoryProvider.value) so context.watch<>() in
+        // ResortWelcomeScreen actually rebuilds when it changes.
+        ChangeNotifierProvider.value(value: widget.dependencies.resortSelection),
       ],
-      child: BlocListener<AuthBloc, AuthState>(
-        // Registering an FCM token needs an authenticated request (the
-        // backend endpoint requires IsAuthenticated), and this fires exactly
-        // once per sign-in across every auth path (OTP, dev-bypass, Google,
-        // email, account-link, and the startup session check) since they all
-        // funnel through AuthBloc._resolveProfile emitting AuthenticatedState.
-        listenWhen: (previous, current) => current is AuthenticatedState && previous is! AuthenticatedState,
-        listener: (context, state) {
-          widget.dependencies.fcmService.initialize();
-          widget.dependencies.fcmService.registerCurrentToken();
-        },
-        child: BlocBuilder<LocaleCubit, Locale>(
-          builder: (context, locale) {
-            return MaterialApp.router(
-              title: 'OwnerConnect',
-              debugShowCheckedModeBanner: false,
-              theme: AppTheme.lightTheme,
-              localizationsDelegates: const [
-                AppLocalizationsDelegate(),
-                GlobalMaterialLocalizations.delegate,
-                GlobalWidgetsLocalizations.delegate,
-                GlobalCupertinoLocalizations.delegate,
-              ],
-              supportedLocales: const [
-                Locale('en'),
-                Locale('ar'),
-              ],
-              locale: locale,
-              routerConfig: _routerConfig,
-            );
+      child: MultiBlocProvider(
+        providers: [
+          BlocProvider.value(value: widget.dependencies.authBloc),
+          BlocProvider.value(value: widget.dependencies.localeBloc),
+          BlocProvider(create: (_) => FinancialBloc(repository: widget.dependencies.financialRepository)),
+          BlocProvider(create: (_) => SupportBloc(repository: widget.dependencies.supportRepository)),
+          BlocProvider.value(value: _notificationBloc),
+        ],
+        child: BlocListener<AuthBloc, AuthState>(
+          // Registering an FCM token needs an authenticated request (the
+          // backend endpoint requires IsAuthenticated), and this fires exactly
+          // once per sign-in across every auth path (OTP, dev-bypass, Google,
+          // email, account-link, and the startup session check) since they all
+          // funnel through AuthBloc._resolveProfile emitting AuthenticatedState.
+          listenWhen: (previous, current) => current is AuthenticatedState && previous is! AuthenticatedState,
+          listener: (context, state) {
+            widget.dependencies.fcmService.initialize();
+            widget.dependencies.fcmService.registerCurrentToken();
           },
+          child: BlocBuilder<LocaleBloc, LocaleState>(
+            builder: (context, localeState) {
+              return MaterialApp.router(
+                title: 'OwnerConnect',
+                debugShowCheckedModeBanner: false,
+                theme: AppTheme.lightTheme,
+                localizationsDelegates: const [
+                  AppLocalizationsDelegate(),
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
+                ],
+                supportedLocales: kSupportedLocales,
+                locale: localeState.locale,
+                routerConfig: _routerConfig,
+              );
+            },
+          ),
         ),
       ),
     );
