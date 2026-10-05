@@ -37,16 +37,26 @@ class AuthenticatedState extends AuthState {
   final String resortName;
   final String? resortLogoUrl;
 
+  /// The owner's own name, for the drawer header — empty until they've set
+  /// one; [phone] is what's shown instead.
+  final String fullname;
+  final String phone;
+
   const AuthenticatedState({
     required this.userId,
     required this.role,
     required this.resortId,
     required this.resortName,
     this.resortLogoUrl,
+    this.fullname = '',
+    this.phone = '',
   });
 
+  /// Who to call this person: their name, else their phone number.
+  String get displayName => fullname.trim().isNotEmpty ? fullname.trim() : phone;
+
   @override
-  List<Object?> get props => [userId, role, resortId, resortName, resortLogoUrl];
+  List<Object?> get props => [userId, role, resortId, resortName, resortLogoUrl, fullname, phone];
 }
 
 /// Signed in but `resort` is still null on the backend — the account exists

@@ -33,6 +33,14 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
     super.dispose();
   }
 
+  /// Creating a ticket leaves the shared SupportBloc in TicketCreatedState,
+  /// which this list renders as blank — reload it once the form closes.
+  Future<void> _openCreateForm() async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NewSupportRequestScreen()));
+    if (!mounted) return;
+    context.read<SupportBloc>().add(const FetchTicketsEvent(page: 1));
+  }
+
   void _onScroll() {
     if (_isBottom) {
       final state = context.read<SupportBloc>().state;
@@ -58,9 +66,7 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
         title: Text(loc.translate('tickets_title')),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const NewSupportRequestScreen()),
-        ),
+        onPressed: _openCreateForm,
         backgroundColor: AppColors.secondary,
         icon: const Icon(Icons.add),
         label: Text(loc.translate('create_ticket')),

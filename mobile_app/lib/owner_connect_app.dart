@@ -7,14 +7,20 @@ import 'core/bootstrap/app_dependencies.dart';
 import 'core/localization/locale_bloc.dart';
 import 'core/localization/locale_state.dart';
 import 'core/router/app_router.dart';
+import 'core/router/splash_gate.dart';
+import 'core/services/notification_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/app_localizations.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/auth/presentation/bloc/auth_state.dart';
 import 'features/financial/presentation/bloc/financial_bloc.dart';
+import 'features/home/presentation/bloc/home_tab_bloc.dart';
 import 'features/notifications/presentation/bloc/notification_bloc.dart';
 import 'features/notifications/presentation/bloc/notification_event.dart';
 import 'features/support/presentation/bloc/support_bloc.dart';
+import 'features/support/presentation/bloc/support_event.dart';
+import 'features/support/presentation/bloc/visitor_pass_bloc.dart';
+import 'features/support/presentation/bloc/visitor_pass_event.dart';
 
 /// Root widget: provides the app-wide blocs and configures MaterialApp. All
 /// setup work (env, Firebase, repositories) already happened in
@@ -36,9 +42,21 @@ class _OwnerConnectAppState extends State<OwnerConnectApp> {
   // appeared to lose its just-created tickets after switching language,
   // because the entire navigation stack — not just the text — had been
   // rebuilt from scratch).
-  late final _routerConfig = AppRouter.build(widget.dependencies.authBloc, widget.dependencies.resortSelection);
+  final SplashGate _splashGate = SplashGate();
+  late final _routerConfig = AppRouter.build(
+    widget.dependencies.authBloc,
+    widget.dependencies.resortSelection,
+    splashGate: _splashGate,
+  );
   late final NotificationBloc _notificationBloc =
       NotificationBloc(repository: widget.dependencies.notificationRepository);
+  // Owned here (not created lazily by a BlocProvider) so a push that arrives
+  // while the app is open can refresh whichever list it concerns.
+  late final HomeTabBloc _homeTabBloc = HomeTabBloc();
+  late final NotificationRouter _notificationRouter =
+      NotificationRouter(router: _routerConfig, homeTabs: _homeTabBloc);
+  late final SupportBloc _supportBloc = SupportBloc(repository: widget.dependencies.supportRepository);
+  late final VisitorPassBloc _visitorPassBloc = VisitorPassBloc(repository: widget.dependencies.supportRepository);
 
   @override
   void initState() {
@@ -47,14 +65,29 @@ class _OwnerConnectAppState extends State<OwnerConnectApp> {
     // widget (and therefore NotificationBloc) exists — wire the foreground
     // callback now that both are available, so a push that arrives while the
     // app is open refreshes the bell badge.
-    widget.dependencies.fcmService.onForegroundMessage = (_) {
+    widget.dependencies.fcmService.onNotificationTap = (data) => _notificationRouter.open(data);
+    widget.dependencies.fcmService.onForegroundMessage = (message) {
       _notificationBloc.add(const FetchUnreadCountEvent());
+      // A decision on a pass or an update on a request changes what the
+      // lists show — reload them in place rather than leave them stale.
+      switch (message.data['type']) {
+        case 'pass_decided':
+          _visitorPassBloc.add(const FetchVisitorPassesEvent(refresh: true));
+          break;
+        case 'ticket_status':
+        case 'ticket_reply':
+          _supportBloc.add(const FetchTicketsEvent(page: 1));
+          break;
+      }
     };
   }
 
   @override
   void dispose() {
     _notificationBloc.close();
+    _homeTabBloc.close();
+    _supportBloc.close();
+    _visitorPassBloc.close();
     super.dispose();
   }
 
@@ -63,17 +96,21 @@ class _OwnerConnectAppState extends State<OwnerConnectApp> {
     return MultiProvider(
       providers: [
         RepositoryProvider.value(value: widget.dependencies.resortRepository),
+        RepositoryProvider.value(value: _notificationRouter),
         // ResortSelection is a ValueNotifier — needs ChangeNotifierProvider
         // (not a plain RepositoryProvider.value) so context.watch<>() in
         // ResortWelcomeScreen actually rebuilds when it changes.
         ChangeNotifierProvider.value(value: widget.dependencies.resortSelection),
+        ChangeNotifierProvider.value(value: _splashGate),
       ],
       child: MultiBlocProvider(
         providers: [
           BlocProvider.value(value: widget.dependencies.authBloc),
           BlocProvider.value(value: widget.dependencies.localeBloc),
           BlocProvider(create: (_) => FinancialBloc(repository: widget.dependencies.financialRepository)),
-          BlocProvider(create: (_) => SupportBloc(repository: widget.dependencies.supportRepository)),
+          BlocProvider.value(value: _homeTabBloc),
+          BlocProvider.value(value: _supportBloc),
+          BlocProvider.value(value: _visitorPassBloc),
           BlocProvider.value(value: _notificationBloc),
         ],
         child: BlocListener<AuthBloc, AuthState>(

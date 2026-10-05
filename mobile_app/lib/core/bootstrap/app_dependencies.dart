@@ -1,6 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../firebase_options.dart';
 import '../../features/auth/data/repositories/firebase_auth_repository.dart';
@@ -14,6 +13,7 @@ import '../localization/locale_bloc.dart';
 import '../localization/locale_event.dart';
 import '../network/dio_client.dart';
 import '../services/fcm_service.dart';
+import 'google_sign_in_init.dart';
 
 /// Everything the widget tree needs, built once before runApp. Keeps
 /// main.dart down to "load dependencies, run the app" — no env/Firebase/DI
@@ -39,11 +39,13 @@ class AppDependencies {
     required this.resortSelection,
   });
 
-  static Future<AppDependencies> bootstrap() async {
+  static Future<void> _loadEnv() async {
     try {
       await dotenv.load(fileName: ".env");
     } catch (_) {}
+  }
 
+  static Future<void> _initFirebase() async {
     try {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
@@ -51,30 +53,31 @@ class AppDependencies {
     } catch (_) {
       // Firebase initialization fallback (e.g. dev-bypass mode)
     }
+  }
 
-    try {
-      // Must be called exactly once before GoogleSignIn.instance.authenticate().
-      // serverClientId is the "Web client (auto created by Google Service)"
-      // OAuth client id — copy it from the re-downloaded google-services.json
-      // (oauth_client entries with client_type 3) once Google sign-in is
-      // enabled in the Firebase console.
-      await GoogleSignIn.instance.initialize(
-        serverClientId: dotenv.env['GOOGLE_SERVER_CLIENT_ID'],
-      );
-    } catch (_) {
-      // No Google client configured yet — the Google sign-in button will
-      // surface its own error when tapped rather than blocking app startup.
-    }
-
-    final dioClient = DioClient();
-    final authRepository = FirebaseAuthRepository(dio: dioClient.dio);
-
+  static Future<AppDependencies> bootstrap() async {
     final localeBloc = LocaleBloc();
     final localeLoaded = localeBloc.stream.first;
     localeBloc.add(const LocaleLoadRequested());
-    await localeLoaded;
 
-    final resortSelection = await ResortSelection.load();
+    // The start-up steps that don't depend on each other run side by side —
+    // this is what the native launch screen is held up for, so the time it
+    // takes is the slowest one, not their sum.
+    final results = await Future.wait<Object?>([
+      _loadEnv(),
+      _initFirebase(),
+      localeLoaded,
+      ResortSelection.load(),
+    ]);
+    final resortSelection = results[3] as ResortSelection;
+
+    // Not awaited: it's a network round trip and nothing needs it until the
+    // owner actually taps "Sign in with Google" (which waits for it). Needs
+    // the .env loaded above for its client id.
+    GoogleSignInInit.start();
+
+    final dioClient = DioClient();
+    final authRepository = FirebaseAuthRepository(dio: dioClient.dio);
 
     return AppDependencies(
       authBloc: AuthBloc(repository: authRepository),

@@ -1,5 +1,15 @@
 import 'package:equatable/equatable.dart';
 
+/// Localization key for a `pass_type` value from the API.
+const _passTypeLabelKeys = {
+  'BEACH_ACCESS': 'pass_type_beach',
+  'VISITOR': 'pass_type_visitor',
+  'MAINTENANCE_WORKER': 'pass_type_worker',
+  'TENANT': 'pass_type_tenant',
+};
+
+String passTypeLabelKey(String passType) => _passTypeLabelKeys[passType] ?? passType;
+
 class VisitorPassModel extends Equatable {
   final int id;
   final String passCode;
@@ -13,6 +23,7 @@ class VisitorPassModel extends Equatable {
   final String validFrom;
   final String validTo;
   final String status;
+  final String rejectionReason;
   final String createdAt;
 
   const VisitorPassModel({
@@ -28,6 +39,7 @@ class VisitorPassModel extends Equatable {
     required this.validFrom,
     required this.validTo,
     required this.status,
+    this.rejectionReason = '',
     required this.createdAt,
   });
 
@@ -45,6 +57,7 @@ class VisitorPassModel extends Equatable {
       validFrom: json['valid_from'] as String? ?? '',
       validTo: json['valid_to'] as String? ?? '',
       status: json['status'] as String? ?? '',
+      rejectionReason: json['rejection_reason'] as String? ?? '',
       createdAt: json['created_at'] as String? ?? '',
     );
   }
@@ -63,6 +76,7 @@ class VisitorPassModel extends Equatable {
         validFrom,
         validTo,
         status,
+        rejectionReason,
         createdAt,
       ];
 }

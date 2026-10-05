@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../../../core/bootstrap/google_sign_in_init.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../../../../core/constants/api_endpoints.dart';
 import 'auth_repository.dart';
@@ -109,6 +110,7 @@ class FirebaseAuthRepository implements AuthRepository {
 
   @override
   Future<Map<String, dynamic>> signInWithGoogle() async {
+    await GoogleSignInInit.ready;
     final account = await GoogleSignIn.instance.authenticate();
     final googleIdToken = account.authentication.idToken;
     if (googleIdToken == null) {

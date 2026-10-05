@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/network/api_error.dart';
 import '../../data/repositories/support_repository.dart';
 import 'support_event.dart';
 import 'support_state.dart';
@@ -9,8 +10,6 @@ class SupportBloc extends Bloc<SupportEvent, SupportState> {
   SupportBloc({required this.repository}) : super(SupportInitialState()) {
     on<FetchTicketsEvent>(_onFetchTickets);
     on<CreateTicketEvent>(_onCreateTicket);
-    on<FetchVisitorPassesEvent>(_onFetchVisitorPasses);
-    on<CreateVisitorPassEvent>(_onCreateVisitorPass);
   }
 
   Future<void> _onFetchTickets(FetchTicketsEvent event, Emitter<SupportState> emit) async {
@@ -22,6 +21,7 @@ class SupportBloc extends Bloc<SupportEvent, SupportState> {
         final tickets = await repository.getTickets(
           page: 1,
           category: event.category,
+          excludeCategory: event.excludeCategory,
           status: event.status,
         );
         emit(TicketsLoadedState(
@@ -39,6 +39,7 @@ class SupportBloc extends Bloc<SupportEvent, SupportState> {
         final newTickets = await repository.getTickets(
           page: event.page,
           category: event.category,
+          excludeCategory: event.excludeCategory,
           status: event.status,
         );
         if (newTickets.isEmpty) {
@@ -63,41 +64,14 @@ class SupportBloc extends Bloc<SupportEvent, SupportState> {
       final ticket = await repository.createTicket(
         unitId: event.unitId,
         category: event.category,
+        serviceType: event.serviceType,
         priority: event.priority,
         subject: event.subject,
         description: event.description,
       );
       emit(TicketCreatedState(ticket: ticket));
     } catch (e) {
-      emit(SupportErrorState(message: e.toString()));
-    }
-  }
-
-  Future<void> _onFetchVisitorPasses(FetchVisitorPassesEvent event, Emitter<SupportState> emit) async {
-    if (event.page == 1) emit(SupportLoadingState());
-    try {
-      final passes = await repository.getVisitorPasses(page: event.page);
-      emit(VisitorPassesLoadedState(passes: passes));
-    } catch (e) {
-      emit(SupportErrorState(message: e.toString()));
-    }
-  }
-
-  Future<void> _onCreateVisitorPass(CreateVisitorPassEvent event, Emitter<SupportState> emit) async {
-    emit(SupportLoadingState());
-    try {
-      final pass = await repository.createVisitorPass(
-        unitId: event.unitId,
-        passType: event.passType,
-        visitorName: event.visitorName,
-        nationalId: event.nationalId,
-        carPlate: event.carPlate,
-        validFrom: event.validFrom,
-        validTo: event.validTo,
-      );
-      emit(VisitorPassCreatedState(pass: pass));
-    } catch (e) {
-      emit(SupportErrorState(message: e.toString()));
+      emit(SupportErrorState(message: apiErrorMessage(e)));
     }
   }
 }

@@ -20,10 +20,11 @@ class ResortSelection extends ValueNotifier<ResortModel?> {
 
   static Future<ResortSelection> load({FlutterSecureStorage? storage}) async {
     final s = storage ?? const FlutterSecureStorage();
-    final id = await s.read(key: _idKey);
-    final name = await s.read(key: _nameKey);
+    // Each secure-storage read is a slow Android keystore round trip — three
+    // in a row was a noticeable slice of start-up, so they run together.
+    final values = await Future.wait([s.read(key: _idKey), s.read(key: _nameKey), s.read(key: _logoKey)]);
+    final id = values[0], name = values[1], logo = values[2];
     if (id == null || name == null) return ResortSelection(s, null);
-    final logo = await s.read(key: _logoKey);
     return ResortSelection(s, ResortModel(id: int.parse(id), name: name, logoUrl: logo));
   }
 

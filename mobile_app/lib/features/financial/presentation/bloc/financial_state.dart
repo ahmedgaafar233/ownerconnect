@@ -1,7 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../data/models/charge_model.dart';
 import '../../data/models/charge_summary_model.dart';
-import '../../data/models/payment_model.dart';
 
 // summary rides on every state as a side-channel (mirrors
 // NotificationState.unreadCount) so the combined-total card can render
@@ -87,38 +86,4 @@ class ChargeDeferredState extends FinancialState {
 
 class PaymentPlanCreatedState extends FinancialState {
   const PaymentPlanCreatedState({super.summary});
-}
-
-class PaymentHistoryLoadedState extends FinancialState {
-  final List<PaymentModel> payments;
-  final bool hasReachedMax;
-  final int currentPage;
-  final bool isFetchingMore;
-
-  const PaymentHistoryLoadedState({
-    required this.payments,
-    required this.hasReachedMax,
-    this.currentPage = 1,
-    this.isFetchingMore = false,
-    super.summary,
-  });
-
-  PaymentHistoryLoadedState copyWith({
-    List<PaymentModel>? payments,
-    bool? hasReachedMax,
-    int? currentPage,
-    bool? isFetchingMore,
-    ChargeSummaryModel? summary,
-  }) {
-    return PaymentHistoryLoadedState(
-      payments: payments ?? this.payments,
-      hasReachedMax: hasReachedMax ?? this.hasReachedMax,
-      currentPage: currentPage ?? this.currentPage,
-      isFetchingMore: isFetchingMore ?? this.isFetchingMore,
-      summary: summary ?? this.summary,
-    );
-  }
-
-  @override
-  List<Object?> get props => [payments, hasReachedMax, currentPage, isFetchingMore, summary];
 }

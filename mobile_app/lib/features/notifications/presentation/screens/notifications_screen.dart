@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_localizations.dart';
+import '../../../../core/services/notification_router.dart';
 import '../../data/models/notification_model.dart';
 import '../bloc/notification_bloc.dart';
 import '../bloc/notification_event.dart';
@@ -59,9 +60,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         actions: [
           TextButton(
             onPressed: () => context.read<NotificationBloc>().add(const MarkAllReadEvent()),
+            // Was white — written for the old dark app bar, invisible on the cream one.
             child: Text(
               loc.translate('mark_all_read'),
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -91,7 +93,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   final notification = state.notifications[index];
                   return _NotificationTile(
                     notification: notification,
-                    onTap: () => context.read<NotificationBloc>().add(MarkReadEvent(id: notification.id)),
+                    onTap: () {
+                      context.read<NotificationBloc>().add(MarkReadEvent(id: notification.id));
+                      // Open what it's about (the pass, the charges, the request...).
+                      context.read<NotificationRouter>().open(notification.data, type: notification.type);
+                    },
                   );
                 },
               ),

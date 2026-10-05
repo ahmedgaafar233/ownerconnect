@@ -10,10 +10,23 @@ import 'package:flutter/material.dart';
 /// simplified ring-and-flourish mark used for the app icon instead of
 /// rendering illegible detail.
 class OwcMark extends StatefulWidget {
-  const OwcMark({Key? key, this.size = 116, this.animate = true}) : super(key: key);
+  const OwcMark({
+    Key? key,
+    this.size = 116,
+    this.animate = true,
+    this.duration = const Duration(milliseconds: 5000),
+    this.loop = true,
+  }) : super(key: key);
 
   final double size;
   final bool animate;
+
+  /// One full cycle. The three letters finish drawing at 62% of it.
+  final Duration duration;
+
+  /// Repeat forever (the default, for a mark that just sits on screen), or
+  /// draw once and hold the finished monogram — what a splash wants.
+  final bool loop;
 
   @override
   State<OwcMark> createState() => _OwcMarkState();
@@ -28,10 +41,8 @@ class _OwcMarkState extends State<OwcMark> with SingleTickerProviderStateMixin {
   void initState() {
     super.initState();
     if (widget.animate) {
-      _controller = AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 5000),
-      )..repeat();
+      _controller = AnimationController(vsync: this, duration: widget.duration);
+      widget.loop ? _controller!.repeat() : _controller!.forward();
     }
   }
 

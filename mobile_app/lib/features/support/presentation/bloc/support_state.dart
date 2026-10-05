@@ -1,6 +1,5 @@
 import 'package:equatable/equatable.dart';
 import '../../data/models/ticket_model.dart';
-import '../../data/models/visitor_pass_model.dart';
 
 abstract class SupportState extends Equatable {
   const SupportState();
@@ -51,24 +50,6 @@ class TicketCreatedState extends SupportState {
 
   @override
   List<Object?> get props => [ticket];
-}
-
-class VisitorPassesLoadedState extends SupportState {
-  final List<VisitorPassModel> passes;
-
-  const VisitorPassesLoadedState({required this.passes});
-
-  @override
-  List<Object?> get props => [passes];
-}
-
-class VisitorPassCreatedState extends SupportState {
-  final VisitorPassModel pass;
-
-  const VisitorPassCreatedState({required this.pass});
-
-  @override
-  List<Object?> get props => [pass];
 }
 
 class SupportErrorState extends SupportState {

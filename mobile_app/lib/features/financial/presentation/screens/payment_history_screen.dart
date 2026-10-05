@@ -3,22 +3,41 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_localizations.dart';
-import '../../../../core/utils/file_download.dart';
+import '../../../../core/widgets/app_loading_indicator.dart';
+import '../../../../core/widgets/pdf_viewer_screen.dart';
 import '../../data/models/payment_model.dart';
 import '../bloc/financial_bloc.dart';
-import '../bloc/financial_event.dart';
-import '../bloc/financial_state.dart';
+import '../bloc/payment_history_bloc.dart';
+import '../bloc/payment_history_event.dart';
+import '../bloc/payment_history_state.dart';
 import '../widgets/month_filter_bar.dart';
-import '../../../../core/widgets/app_loading_indicator.dart';
 
-class PaymentHistoryScreen extends StatefulWidget {
+/// Owns its own [PaymentHistoryBloc] for as long as the screen is open — see
+/// that class for why it must not share [FinancialBloc] with the charges page.
+class PaymentHistoryScreen extends StatelessWidget {
   const PaymentHistoryScreen({Key? key}) : super(key: key);
 
   @override
-  State<PaymentHistoryScreen> createState() => _PaymentHistoryScreenState();
+  Widget build(BuildContext context) {
+    // Resolved eagerly: BlocProvider.create is lazy, and a closure reading
+    // this context later can hit an already-deactivated widget (the same
+    // crash the drawer's clearance entry used to have).
+    final repository = context.read<FinancialBloc>().repository;
+    return BlocProvider(
+      create: (_) => PaymentHistoryBloc(repository: repository),
+      child: const _PaymentHistoryView(),
+    );
+  }
 }
 
-class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
+class _PaymentHistoryView extends StatefulWidget {
+  const _PaymentHistoryView();
+
+  @override
+  State<_PaymentHistoryView> createState() => _PaymentHistoryViewState();
+}
+
+class _PaymentHistoryViewState extends State<_PaymentHistoryView> {
   final ScrollController _scrollController = ScrollController();
   int? _filterYear;
   int? _filterMonth;
@@ -26,7 +45,7 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
   @override
   void initState() {
     super.initState();
-    context.read<FinancialBloc>().add(const FetchPaymentHistoryEvent(page: 1));
+    context.read<PaymentHistoryBloc>().add(const FetchPaymentHistoryEvent(page: 1));
     _scrollController.addListener(_onScroll);
   }
 
@@ -39,9 +58,9 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
 
   void _onScroll() {
     if (_isBottom) {
-      final state = context.read<FinancialBloc>().state;
+      final state = context.read<PaymentHistoryBloc>().state;
       if (state is PaymentHistoryLoadedState && !state.hasReachedMax && !state.isFetchingMore) {
-        context.read<FinancialBloc>().add(FetchPaymentHistoryEvent(
+        context.read<PaymentHistoryBloc>().add(FetchPaymentHistoryEvent(
               page: state.currentPage + 1,
               year: _filterYear,
               month: _filterMonth,
@@ -55,7 +74,7 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
       _filterYear = picked?.year;
       _filterMonth = picked?.month;
     });
-    context.read<FinancialBloc>().add(FetchPaymentHistoryEvent(page: 1, year: _filterYear, month: _filterMonth));
+    context.read<PaymentHistoryBloc>().add(FetchPaymentHistoryEvent(page: 1, year: _filterYear, month: _filterMonth));
   }
 
   bool get _isBottom {
@@ -65,22 +84,17 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
     return currentScroll >= (maxScroll * 0.9);
   }
 
-  Future<void> _openReceipt(int paymentId, String url) async {
-    try {
-      final bytes = await context.read<FinancialBloc>().repository.downloadFile(url);
-      final opened = await saveAndOpenFile(bytes, 'receipt-$paymentId.pdf');
-      if (!opened && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context).translate('download_receipt')), backgroundColor: AppColors.error),
-        );
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context).translate('download_receipt')), backgroundColor: AppColors.error),
-        );
-      }
-    }
+  /// Opens the receipt inside the app — read first, keep a copy if wanted.
+  void _viewReceipt(PaymentModel payment, String url) {
+    final repository = context.read<PaymentHistoryBloc>().repository;
+    final loc = AppLocalizations.of(context);
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => PdfViewerScreen(
+        title: '${loc.translate('receipt_no_label')} ${payment.receiptNo}',
+        fileName: 'receipt-${payment.id}',
+        loadBytes: () => repository.downloadFile(url),
+      ),
+    ));
   }
 
   @override
@@ -94,9 +108,9 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
           MonthFilterBar(year: _filterYear, month: _filterMonth, onChanged: _onMonthFilterChanged),
         ],
       ),
-      body: BlocBuilder<FinancialBloc, FinancialState>(
+      body: BlocBuilder<PaymentHistoryBloc, PaymentHistoryState>(
         builder: (context, state) {
-          if (state is FinancialLoadingState) {
+          if (state is PaymentHistoryLoadingState) {
             return const Center(child: AppLoadingIndicator());
           } else if (state is PaymentHistoryLoadedState) {
             if (state.payments.isEmpty) {
@@ -114,12 +128,12 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
                 }
                 return _PaymentTile(
                   payment: state.payments[index],
-                  onDownload: (url) => _openReceipt(state.payments[index].id, url),
+                  onView: (url) => _viewReceipt(state.payments[index], url),
                 );
               },
             );
-          } else if (state is FinancialErrorState) {
-            return Center(child: Text(state.errorMessage));
+          } else if (state is PaymentHistoryErrorState) {
+            return Center(child: Text(state.message));
           }
           return const SizedBox.shrink();
         },
@@ -130,9 +144,9 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
 
 class _PaymentTile extends StatelessWidget {
   final PaymentModel payment;
-  final void Function(String url) onDownload;
+  final void Function(String url) onView;
 
-  const _PaymentTile({required this.payment, required this.onDownload});
+  const _PaymentTile({required this.payment, required this.onView});
 
   @override
   Widget build(BuildContext context) {
@@ -142,6 +156,7 @@ class _PaymentTile extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: ListTile(
         contentPadding: const EdgeInsets.all(16),
+        onTap: payment.receiptPdfUrl != null ? () => onView(payment.receiptPdfUrl!) : null,
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -171,9 +186,9 @@ class _PaymentTile extends StatelessWidget {
         ),
         trailing: payment.receiptPdfUrl != null
             ? IconButton(
-                icon: const Icon(Icons.download, color: AppColors.secondary),
-                tooltip: loc.translate('download_receipt'),
-                onPressed: () => onDownload(payment.receiptPdfUrl!),
+                icon: const Icon(Icons.receipt_long_rounded, color: AppColors.secondary),
+                tooltip: loc.translate('view_receipt'),
+                onPressed: () => onView(payment.receiptPdfUrl!),
               )
             : null,
       ),

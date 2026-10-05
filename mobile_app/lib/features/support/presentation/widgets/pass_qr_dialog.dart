@@ -21,7 +21,7 @@ class PassQrDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              pass.passType,
+              loc.translate(passTypeLabelKey(pass.passType)),
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
             ),
             const SizedBox(height: 8),

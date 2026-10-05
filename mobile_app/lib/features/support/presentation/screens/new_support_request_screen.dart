@@ -12,22 +12,34 @@ import '../bloc/support_state.dart';
 class _IssueType {
   final String labelKey;
   final IconData icon;
-  const _IssueType(this.labelKey, this.icon);
+
+  /// Backend `service_type` code — what the request is routed on.
+  final String serviceType;
+
+  /// Backend ticket category.
+  final String category;
+  const _IssueType(this.labelKey, this.icon, this.serviceType, {this.category = 'MAINTENANCE'});
 }
 
 const _issueTypes = [
-  _IssueType('category_electrician', Icons.electrical_services),
-  _IssueType('category_plumber', Icons.plumbing),
-  _IssueType('category_carpenter', Icons.carpenter),
-  _IssueType('category_satellite', Icons.satellite_alt),
-  _IssueType('category_gardening', Icons.grass),
-  _IssueType('category_pest_control', Icons.pest_control),
+  _IssueType('category_electrician', Icons.electrical_services, 'ELECTRICIAN'),
+  _IssueType('category_plumber', Icons.plumbing, 'PLUMBER'),
+  _IssueType('category_carpenter', Icons.carpenter, 'CARPENTER'),
+  _IssueType('category_satellite', Icons.satellite_alt, 'SATELLITE'),
+  _IssueType('category_gardening', Icons.grass, 'GARDENING'),
+  _IssueType('category_pest_control', Icons.pest_control, 'PEST_CONTROL'),
+  _IssueType('category_housekeeping', Icons.cleaning_services, 'HOUSEKEEPING', category: 'HOUSEKEEPING'),
 ];
 
-/// Category on the backend stays MAINTENANCE for every issue type here —
-/// the technician type the owner picks becomes the ticket's subject, not a
-/// new backend enum value, so the existing Tenant restriction (category
-/// must be MAINTENANCE) and staff workflows need no changes.
+/// A Tenant may only raise maintenance requests (enforced server-side too),
+/// so the housekeeping tile is for Owners only.
+List<_IssueType> _issueTypesFor(String role) =>
+    role == 'TENANT' ? _issueTypes.where((t) => t.category == 'MAINTENANCE').toList() : _issueTypes;
+
+/// The technician type picked becomes both the ticket's subject (readable
+/// text for staff) and its `service_type` code, which the backend routes to
+/// whoever the resort set up to receive that kind of request. Every type but
+/// housekeeping is filed under the MAINTENANCE category.
 class NewSupportRequestScreen extends StatefulWidget {
   const NewSupportRequestScreen({Key? key}) : super(key: key);
 
@@ -38,6 +50,7 @@ class NewSupportRequestScreen extends StatefulWidget {
 class _NewSupportRequestScreenState extends State<NewSupportRequestScreen> {
   final _detailsController = TextEditingController();
   int? _unitId;
+  String _role = '';
   bool _isLoadingUnit = true;
   bool _hasLoadError = false;
   String? _selectedTypeKey;
@@ -65,6 +78,7 @@ class _NewSupportRequestScreenState extends State<NewSupportRequestScreen> {
       if (mounted) {
         setState(() {
           _unitId = units != null && units.isNotEmpty ? units.first['id'] as int : null;
+          _role = profile['role'] as String? ?? '';
           _isLoadingUnit = false;
         });
       }
@@ -82,10 +96,12 @@ class _NewSupportRequestScreenState extends State<NewSupportRequestScreen> {
     if (_unitId == null || _selectedTypeKey == null) return;
     final loc = AppLocalizations.of(context);
     final subject = loc.translate(_selectedTypeKey!);
+    final issue = _issueTypes.firstWhere((t) => t.labelKey == _selectedTypeKey);
     context.read<SupportBloc>().add(
           CreateTicketEvent(
             unitId: _unitId!,
-            category: 'MAINTENANCE',
+            category: issue.category,
+            serviceType: issue.serviceType,
             priority: 'MEDIUM',
             subject: subject,
             description: _detailsController.text.trim(),
@@ -161,7 +177,7 @@ class _NewSupportRequestScreenState extends State<NewSupportRequestScreen> {
                   mainAxisSpacing: 12,
                   crossAxisSpacing: 12,
                   childAspectRatio: 1.35,
-                  children: _issueTypes.map((type) {
+                  children: _issueTypesFor(_role).map((type) {
                     final isSelected = _selectedTypeKey == type.labelKey;
                     return _IssueTypeCard(
                       label: loc.translate(type.labelKey),

@@ -8,9 +8,15 @@ class SupportRepository {
 
   SupportRepository({required this.dio});
 
-  Future<List<TicketModel>> getTickets({int page = 1, String? category, String? status}) async {
+  Future<List<TicketModel>> getTickets({
+    int page = 1,
+    String? category,
+    String? excludeCategory,
+    String? status,
+  }) async {
     final queryParams = <String, dynamic>{'page': page};
     if (category != null && category.isNotEmpty) queryParams['category'] = category;
+    if (excludeCategory != null && excludeCategory.isNotEmpty) queryParams['exclude_category'] = excludeCategory;
     if (status != null && status.isNotEmpty) queryParams['status'] = status;
 
     final response = await dio.get(ApiEndpoints.tickets, queryParameters: queryParams);
@@ -21,6 +27,7 @@ class SupportRepository {
   Future<TicketModel> createTicket({
     required int unitId,
     required String category,
+    String serviceType = '',
     required String priority,
     required String subject,
     required String description,
@@ -30,6 +37,7 @@ class SupportRepository {
       data: {
         'unit': unitId,
         'category': category,
+        if (serviceType.isNotEmpty) 'service_type': serviceType,
         'priority': priority,
         'subject': subject,
         'description': description,
@@ -50,8 +58,8 @@ class SupportRepository {
     required String visitorName,
     required String nationalId,
     required String carPlate,
-    required String validFrom,
-    required String validTo,
+    required String startDate,
+    required String endDate,
   }) async {
     final response = await dio.post(
       ApiEndpoints.passes,
@@ -61,8 +69,8 @@ class SupportRepository {
         'visitor_name': visitorName,
         'national_id_or_passport': nationalId,
         'car_plate': carPlate,
-        'valid_from': validFrom,
-        'valid_to': validTo,
+        'start_date': startDate,
+        'end_date': endDate,
       },
     );
     return VisitorPassModel.fromJson(response.data as Map<String, dynamic>);

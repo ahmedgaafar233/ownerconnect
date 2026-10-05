@@ -14,7 +14,6 @@ class FinancialBloc extends Bloc<FinancialEvent, FinancialState> {
     on<PaymentFailedEvent>(_onPaymentFailed);
     on<DeferChargeEvent>(_onDeferCharge);
     on<CreatePaymentPlanEvent>(_onCreatePaymentPlan);
-    on<FetchPaymentHistoryEvent>(_onFetchPaymentHistory);
   }
 
   Future<void> _onFetchCharges(
@@ -79,8 +78,6 @@ class FinancialBloc extends Bloc<FinancialEvent, FinancialState> {
       final summary = await repository.getChargeSummary();
       final current = state;
       if (current is ChargesLoadedState) {
-        emit(current.copyWith(summary: summary));
-      } else if (current is PaymentHistoryLoadedState) {
         emit(current.copyWith(summary: summary));
       } else if (current is FinancialErrorState) {
         emit(FinancialErrorState(errorMessage: current.errorMessage, summary: summary));
@@ -166,48 +163,5 @@ class FinancialBloc extends Bloc<FinancialEvent, FinancialState> {
       emit(FinancialErrorState(errorMessage: e.toString(), summary: state.summary));
     }
     add(const FetchChargesEvent(page: 1));
-  }
-
-  Future<void> _onFetchPaymentHistory(
-    FetchPaymentHistoryEvent event,
-    Emitter<FinancialState> emit,
-  ) async {
-    final currentState = state;
-
-    if (event.page == 1) {
-      emit(FinancialLoadingState(summary: state.summary));
-      try {
-        final payments = await repository.getPaymentHistory(page: 1, year: event.year, month: event.month);
-        emit(PaymentHistoryLoadedState(
-          payments: payments,
-          hasReachedMax: payments.length < 15,
-          currentPage: 1,
-          isFetchingMore: false,
-          summary: state.summary,
-        ));
-      } catch (e) {
-        emit(FinancialErrorState(errorMessage: e.toString(), summary: state.summary));
-      }
-    } else if (currentState is PaymentHistoryLoadedState &&
-        !currentState.hasReachedMax &&
-        !currentState.isFetchingMore) {
-      emit(currentState.copyWith(isFetchingMore: true));
-      try {
-        final newPayments = await repository.getPaymentHistory(page: event.page, year: event.year, month: event.month);
-        if (newPayments.isEmpty) {
-          emit(currentState.copyWith(hasReachedMax: true, isFetchingMore: false));
-        } else {
-          emit(PaymentHistoryLoadedState(
-            payments: List.from(currentState.payments)..addAll(newPayments),
-            hasReachedMax: newPayments.length < 15,
-            currentPage: event.page,
-            isFetchingMore: false,
-            summary: state.summary,
-          ));
-        }
-      } catch (e) {
-        emit(currentState.copyWith(isFetchingMore: false));
-      }
-    }
   }
 }

@@ -17,9 +17,8 @@ import '../../../profile/presentation/screens/payment_methods_screen.dart';
 import '../../../profile/presentation/screens/profile_screen.dart';
 import '../../../profile/presentation/screens/settings_screen.dart';
 
-/// The role label used to sit under the resort name in HomeShell's AppBar —
-/// moved here (into the drawer header) since it looked bad pinned in the
-/// AppBar permanently.
+/// Shows the signed-in person — their name and role — under the village's
+/// banner. (The village name itself lives in HomeShell's app bar.)
 class AppDrawer extends StatelessWidget {
   const AppDrawer({Key? key}) : super(key: key);
 
@@ -32,7 +31,8 @@ class AppDrawer extends StatelessWidget {
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
     final authState = context.watch<AuthBloc>().state;
-    final resortName = authState is AuthenticatedState ? authState.resortName : '';
+    // The village is already in the app bar; here it's the person.
+    final displayName = authState is AuthenticatedState ? authState.displayName : '';
     final logoUrl = authState is AuthenticatedState ? authState.resortLogoUrl : null;
     final roleLabel = authState is AuthenticatedState
         ? loc.translate(authState.role == 'TENANT' ? 'role_tenant' : 'role_owner')
@@ -50,7 +50,7 @@ class AppDrawer extends StatelessWidget {
           child: SafeArea(
             child: Column(
               children: [
-                _DrawerHeader(resortName: resortName, roleLabel: roleLabel, logoUrl: logoUrl),
+                _DrawerHeader(displayName: displayName, roleLabel: roleLabel, logoUrl: logoUrl),
                 Expanded(
                   child: ListView(
                     padding: EdgeInsets.zero,
@@ -118,9 +118,9 @@ class AppDrawer extends StatelessWidget {
 }
 
 class _DrawerHeader extends StatelessWidget {
-  const _DrawerHeader({required this.resortName, required this.roleLabel, required this.logoUrl});
+  const _DrawerHeader({required this.displayName, required this.roleLabel, required this.logoUrl});
 
-  final String resortName;
+  final String displayName;
   final String roleLabel;
   final String? logoUrl;
 
@@ -160,7 +160,7 @@ class _DrawerHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  resortName.isNotEmpty ? resortName : loc.translate('app_title'),
+                  displayName.isNotEmpty ? displayName : loc.translate('app_title'),
                   style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
                 ),
                 if (roleLabel.isNotEmpty)

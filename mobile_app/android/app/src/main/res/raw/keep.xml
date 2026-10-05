@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Release builds strip resources nothing references by id. The notification
+     sound and status icon are looked up by NAME at runtime (the channel's sound
+     URI, the plugin's icon lookup, the backend's `sound: "owc_notify"`), so
+     without this the release APK has neither and the push is silent / not shown. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/owc_notify,@drawable/ic_stat_owc,@mipmap/ic_launcher" />

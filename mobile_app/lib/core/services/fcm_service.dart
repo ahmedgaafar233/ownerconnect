@@ -3,6 +3,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
+import 'notification_presenter.dart';
+
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -22,6 +24,13 @@ class FcmService {
   /// NotificationBloc — exists), so the owning widget assigns this once
   /// it's created its own bloc instance.
   void Function(RemoteMessage message)? onForegroundMessage;
+
+  final NotificationPresenter _presenter = NotificationPresenter();
+
+  /// Called with a push's data payload when the person taps a notification —
+  /// whether it was drawn by Firebase (app closed/background) or by us (app
+  /// open) — so the app can take them to the thing it's about.
+  void Function(Map<String, dynamic> data)? onNotificationTap;
 
   FcmService(this._dio);
 
@@ -44,13 +53,26 @@ class FcmService {
     // 2. Set Background Message Handler
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-    // 3. Handle Foreground Messages
+    // The channel (sound + pop-up) must exist before any push targets it.
+    _presenter.onTap = (data) => onNotificationTap?.call(data);
+    await _presenter.initialize();
+    await _messaging.setForegroundNotificationPresentationOptions(alert: true, badge: true, sound: true);
+
+    // 3. Handle Foreground Messages — Firebase draws nothing while the app is
+    // open, so show it ourselves (sound + pop-up) and let the app refresh.
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       if (kDebugMode) {
         print('Foreground notification received: ${message.notification?.title}');
       }
+      _presenter.show(message);
       onForegroundMessage?.call(message);
     });
+
+    // Tapped while the app was in the background...
+    FirebaseMessaging.onMessageOpenedApp.listen((message) => onNotificationTap?.call(message.data));
+    // ...or launched from a tap while it was closed.
+    final initial = await _messaging.getInitialMessage();
+    if (initial != null) onNotificationTap?.call(initial.data);
 
     // 4. Token Refresh Listener
     _messaging.onTokenRefresh.listen((newToken) {

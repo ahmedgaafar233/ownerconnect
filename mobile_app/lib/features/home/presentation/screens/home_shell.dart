@@ -11,6 +11,10 @@ import '../../../notifications/presentation/bloc/notification_bloc.dart';
 import '../../../notifications/presentation/bloc/notification_event.dart';
 import '../../../support/presentation/screens/support_tickets_screen.dart';
 import '../../../support/presentation/screens/visitor_passes_screen.dart';
+import '../../../../core/widgets/wave_bottom_nav.dart';
+import '../bloc/home_tab_bloc.dart';
+import '../bloc/home_tab_event.dart';
+import '../bloc/home_tab_state.dart';
 import '../widgets/app_drawer.dart';
 
 /// Authenticated app shell. Only ever reached via the router when AuthBloc
@@ -24,8 +28,6 @@ class HomeShell extends StatefulWidget {
 }
 
 class _HomeShellState extends State<HomeShell> {
-  int _currentIndex = 0;
-
   final List<Widget> _screens = const [
     ChargesScreen(),
     SupportTicketsScreen(),
@@ -48,7 +50,11 @@ class _HomeShellState extends State<HomeShell> {
     return Scaffold(
       drawer: const AppDrawer(),
       appBar: AppBar(
-        title: Text(resortName.isNotEmpty ? resortName : loc.translate('app_title')),
+        // The village name reads as a brand: all capitals, heavy weight.
+        title: Text(
+          (resortName.isNotEmpty ? resortName : loc.translate('app_title')).toUpperCase(),
+          style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1.4, fontSize: 19),
+        ),
         actions: [
           IconButton(
             icon: Badge(
@@ -66,27 +72,19 @@ class _HomeShellState extends State<HomeShell> {
           ),
         ],
       ),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
+      body: BlocBuilder<HomeTabBloc, HomeTabState>(
+        builder: (context, tab) => IndexedStack(index: tab.index, children: _screens),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-        items: [
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.account_balance_wallet),
-            label: loc.translate('charges_title'),
-          ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.support_agent),
-            label: loc.translate('tickets_title'),
-          ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.qr_code_2),
-            label: loc.translate('passes_title'),
-          ),
-        ],
+      bottomNavigationBar: BlocBuilder<HomeTabBloc, HomeTabState>(
+        builder: (context, tab) => WaveBottomNav(
+          currentIndex: tab.index,
+          onTap: (index) => context.read<HomeTabBloc>().add(HomeTabSelected(index)),
+          items: [
+            WaveNavItem(icon: Icons.account_balance_wallet_rounded, label: loc.translate('charges_title')),
+            WaveNavItem(icon: Icons.support_agent_rounded, label: loc.translate('tickets_title')),
+            WaveNavItem(icon: Icons.qr_code_2_rounded, label: loc.translate('passes_title')),
+          ],
+        ),
       ),
     );
   }

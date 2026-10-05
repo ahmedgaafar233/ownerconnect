@@ -1,11 +1,16 @@
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
 
 import 'package:owner_connect/core/router/app_router.dart';
+import 'package:owner_connect/core/router/splash_gate.dart';
 import 'package:owner_connect/core/theme/app_theme.dart';
+import 'package:owner_connect/features/auth/data/models/resort_model.dart';
 import 'package:owner_connect/features/auth/data/repositories/auth_repository.dart';
+import 'package:owner_connect/features/auth/data/resort_selection.dart';
 import 'package:owner_connect/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:owner_connect/features/auth/presentation/bloc/auth_event.dart';
 import 'package:owner_connect/features/auth/presentation/bloc/auth_state.dart';
@@ -70,16 +75,29 @@ class _FakeAuthRepository implements AuthRepository {
 }
 
 void main() {
-  testWidgets('with no stored session, the tenant gate routes to phone entry', (tester) async {
+  testWidgets('with no stored session and a resort already picked, the tenant gate routes to phone entry', (tester) async {
     final repository = _FakeAuthRepository()..loggedIn = false;
     final authBloc = AuthBloc(repository: repository);
     addTearDown(authBloc.close);
+    // A previously-picked resort skips the first-launch picker flow; nothing
+    // here calls select(), so the secure-storage platform channel is never hit.
+    final resortSelection = ResortSelection(
+      const FlutterSecureStorage(),
+      const ResortModel(id: 1, name: 'Delta Sharm'),
+    );
+    addTearDown(resortSelection.dispose);
 
-    await tester.pumpWidget(BlocProvider.value(
-      value: authBloc,
-      child: MaterialApp.router(
-        theme: AppTheme.lightTheme,
-        routerConfig: AppRouter.build(authBloc),
+    await tester.pumpWidget(MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: resortSelection),
+        ChangeNotifierProvider.value(value: SplashGate.open()),
+      ],
+      child: BlocProvider.value(
+        value: authBloc,
+        child: MaterialApp.router(
+          theme: AppTheme.lightTheme,
+          routerConfig: AppRouter.build(authBloc, resortSelection),
+        ),
       ),
     ));
     await tester.pumpAndSettle();

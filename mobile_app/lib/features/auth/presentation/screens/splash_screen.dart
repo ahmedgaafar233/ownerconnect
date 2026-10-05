@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:provider/provider.dart';
 
+import '../../../../core/router/splash_gate.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_localizations.dart';
 import '../../../../core/widgets/owc_mark.dart';
@@ -9,19 +13,40 @@ import '../bloc/auth_event.dart';
 
 /// Pure loading state while AuthBloc checks a stored session. The router's
 /// redirect logic decides where to go next once AuthBloc emits a real state
-/// — this screen makes no navigation decisions itself.
+/// — this screen makes no navigation decisions itself, except that it keeps
+/// the router here ([SplashGate]) until the OWC monogram has had time to draw
+/// its three letters. The session check used to finish in a blink, so the
+/// router jumped straight past and the animation never got to play.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
+
+  /// The monogram takes [markDuration] for a full cycle and has drawn all
+  /// three letters by 62% of it (about 2 s); this holds a beat past that.
+  static const markDuration = Duration(milliseconds: 3200);
+  static const minimumDisplay = Duration(milliseconds: 2800);
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  late final SplashGate _gate;
+  Timer? _timer;
+
   @override
   void initState() {
     super.initState();
     context.read<AuthBloc>().add(const AuthCheckRequested());
+    _gate = context.read<SplashGate>();
+    _timer = Timer(SplashScreen.minimumDisplay, _gate.complete);
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    // However this screen goes, the router mustn't be left waiting on it.
+    _gate.complete();
+    super.dispose();
   }
 
   @override
@@ -46,7 +71,7 @@ class _SplashScreenState extends State<SplashScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const OwcMark(size: 116),
+                  const OwcMark(size: 116, duration: SplashScreen.markDuration),
                   const SizedBox(height: 24),
                   Text(
                     'OWNERCONNECT',

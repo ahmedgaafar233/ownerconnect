@@ -11,9 +11,11 @@ import '../../features/auth/presentation/screens/phone_entry_screen.dart';
 import '../../features/auth/presentation/screens/resort_picker_screen.dart';
 import '../../features/auth/presentation/screens/resort_welcome_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
+import '../../features/financial/presentation/screens/payment_history_screen.dart';
 import '../../features/home/presentation/screens/home_shell.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
 import 'go_router_refresh_stream.dart';
+import 'splash_gate.dart';
 
 const _resortPickerFlow = {'/select-resort', '/welcome-resort'};
 
@@ -23,13 +25,17 @@ const _resortPickerFlow = {'/select-resort', '/welcome-resort'};
 /// owner's own resort — see AuthenticatedState.resortName consumed by
 /// HomeShell.
 class AppRouter {
-  static GoRouter build(AuthBloc authBloc, ResortSelection resortSelection) {
+  static GoRouter build(AuthBloc authBloc, ResortSelection resortSelection, {SplashGate? splashGate}) {
+    final gate = splashGate ?? SplashGate.open();
     return GoRouter(
       initialLocation: '/splash',
-      refreshListenable: Listenable.merge([GoRouterRefreshStream(authBloc.stream), resortSelection]),
+      refreshListenable: Listenable.merge([GoRouterRefreshStream(authBloc.stream), resortSelection, gate]),
       redirect: (context, state) {
         final authState = authBloc.state;
         final location = state.matchedLocation;
+
+        // Stay on the splash until it has had its moment on screen.
+        if (!gate.isDone) return location == '/splash' ? null : '/splash';
 
         if (authState is AuthInitialState || authState is AuthLoadingState) {
           return location == '/splash' ? null : '/splash';
@@ -76,6 +82,7 @@ class AppRouter {
         GoRoute(path: '/pending', builder: (_, __) => const PendingResortScreen()),
         GoRoute(path: '/home', builder: (_, __) => const HomeShell()),
         GoRoute(path: '/notifications', builder: (_, __) => const NotificationsScreen()),
+        GoRoute(path: '/payment-history', builder: (_, __) => const PaymentHistoryScreen()),
       ],
     );
   }

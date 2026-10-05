@@ -209,6 +209,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           resortId: resortId as int,
           resortName: resortName ?? '',
           resortLogoUrl: resortLogoUrl,
+          fullname: profile['fullname'] as String? ?? '',
+          phone: profile['phone'] as String? ?? '',
         ));
       }
     } catch (e) {

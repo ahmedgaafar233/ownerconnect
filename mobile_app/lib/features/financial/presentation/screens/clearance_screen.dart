@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_localizations.dart';
-import '../../../../core/utils/file_download.dart';
+import '../../../../core/widgets/pdf_viewer_screen.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../data/models/clearance_model.dart';
 import '../bloc/clearance_bloc.dart';
@@ -71,22 +71,16 @@ class _ClearanceScreenState extends State<ClearanceScreen> {
         );
   }
 
-  Future<void> _openPdf(int statementId, String url) async {
-    try {
-      final bytes = await context.read<ClearanceBloc>().repository.downloadFile(url);
-      final opened = await saveAndOpenFile(bytes, 'clearance-$statementId.pdf');
-      if (!opened && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context).translate('download_receipt')), backgroundColor: AppColors.error),
-        );
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context).translate('download_receipt')), backgroundColor: AppColors.error),
-        );
-      }
-    }
+  /// Opens the statement inside the app (read first, download if wanted).
+  void _openPdf(int statementId, String url) {
+    final repository = context.read<ClearanceBloc>().repository;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => PdfViewerScreen(
+        title: AppLocalizations.of(context).translate('clearance_title'),
+        fileName: 'clearance-$statementId',
+        loadBytes: () => repository.downloadFile(url),
+      ),
+    ));
   }
 
   @override

@@ -72,14 +72,3 @@ class CreatePaymentPlanEvent extends FinancialEvent {
   @override
   List<Object?> get props => [chargeId, installments];
 }
-
-class FetchPaymentHistoryEvent extends FinancialEvent {
-  final int page;
-  final int? year;
-  final int? month;
-
-  const FetchPaymentHistoryEvent({this.page = 1, this.year, this.month});
-
-  @override
-  List<Object?> get props => [page, year, month];
-}
