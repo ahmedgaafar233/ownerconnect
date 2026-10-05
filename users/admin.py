@@ -49,13 +49,13 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
     # Removed resort from fieldsets
     fieldsets = (
         (None, {"fields": ("phone", "password")}),
-        ("Role", {"fields": ("role",)}),
+        ("Role", {"fields": ("role", "resort")}),
         ("Permissions", {"fields": ("is_active", "is_staff", "is_superuser")}),
         ("Owner Statement", {"fields": ("owner_statement",)}),
     )
     # Removed resort from add_fieldsets
     add_fieldsets = (
-        (None, {"fields": ("phone", "password1", "password2", "role")}),
+        (None, {"fields": ("phone", "password1", "password2", "role", "resort")}),
     )
 
     def owner_statement(self, obj):
@@ -152,10 +152,19 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
         return "-"
     remaining_balance_display.short_description = "Remaining Balance"
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        # Only a superuser may place a user in any resort; anyone else with
+        # access to this admin can only assign their own.
+        if db_field.name == "resort" and not request.user.is_superuser:
+            kwargs["queryset"] = Resort.objects.filter(pk=request.user.resort_id)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
     def save_model(self, request, obj, form, change):
-        # Always set default resort to the first one found (Delta Sharm)
+        # A new user with no resort picked used to land in whichever resort
+        # happened to be first (Delta Sharm), so staff for any other resort
+        # couldn't be created here. Fall back to the creator's own resort.
         if not obj.resort:
-            obj.resort = Resort.objects.first()
+            obj.resort = request.user.resort if not request.user.is_superuser and request.user.resort_id else Resort.objects.first()
         super().save_model(request, obj, form, change)
 
 

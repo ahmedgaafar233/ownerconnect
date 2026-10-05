@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 
 
 class Ticket(models.Model):
@@ -25,6 +26,20 @@ class Ticket(models.Model):
         HIGH = "HIGH", "High"
         URGENT = "URGENT", "Urgent"
 
+    class ServiceType(models.TextChoices):
+        """
+        Stable code for what kind of service was asked for — the subject is
+        free, localized text and can't be routed on. Who handles each type is
+        data (ServiceRoute), not code, since it differs per resort.
+        """
+        ELECTRICIAN = "ELECTRICIAN", "Electrician"
+        PLUMBER = "PLUMBER", "Plumber"
+        CARPENTER = "CARPENTER", "Carpenter"
+        SATELLITE = "SATELLITE", "Satellite Technician"
+        GARDENING = "GARDENING", "Gardening & Agriculture"
+        PEST_CONTROL = "PEST_CONTROL", "Pest Control"
+        HOUSEKEEPING = "HOUSEKEEPING", "Housekeeping"
+
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -41,11 +56,18 @@ class Ticket(models.Model):
         related_name="tickets"
     )
     category = models.CharField(max_length=20, choices=Category.choices)
+    service_type = models.CharField(max_length=20, choices=ServiceType.choices, blank=True, default="")
     priority = models.CharField(max_length=10, choices=Priority.choices, default=Priority.MEDIUM)
     subject = models.CharField(max_length=255)
-    description = models.TextField(help_text="Detailed description of the issue")
+    # Optional: the app lets an owner just pick the kind of issue ("Electrician")
+    # and add details only if they want to.
+    description = models.TextField(blank=True, default="", help_text="Detailed description of the issue")
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.OPEN)
     
+    # Who the desk sent to do the job — a staff account if the technician has
+    # one, otherwise just their name.
+    technician_name = models.CharField(max_length=120, blank=True, default="")
+
     # For maintenance/cleaning assignments
     assigned_to = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -173,7 +195,10 @@ class VisitorPass(models.Model):
         MAINTENANCE_WORKER = "MAINTENANCE_WORKER", "Maintenance Worker"
 
     class Status(models.TextChoices):
+        # A resident's request waiting for Security (APPROVAL mode resorts).
+        PENDING = "PENDING", "Pending approval"
         ACTIVE = "ACTIVE", "Active"
+        REJECTED = "REJECTED", "Rejected"
         EXPIRED = "EXPIRED", "Expired"
         CANCELLED = "CANCELLED", "Cancelled"
 
@@ -191,11 +216,40 @@ class VisitorPass(models.Model):
     
     pass_code = models.CharField(max_length=64, unique=True, editable=False)
     status = models.CharField(max_length=15, choices=Status.choices, default=Status.ACTIVE)
+    # Set when the resort's own staff issued this pass for the resident
+    # (`owner`) rather than the resident doing it from the app.
+    issued_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="issued_passes"
+    )
+    # Who approved/rejected a pending request, when, and why (shown to the owner).
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="decided_passes"
+    )
+    decided_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.TextField(blank=True, default="")
     
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # Only these draw down a unit's card allowance (Unit.card_allowance) —
+    # guest and maintenance-worker passes are the owner's to issue freely.
+    CARD_PASS_TYPES = (PassType.BEACH_ACCESS,)
+
     class Meta:
         ordering = ["-created_at"]
+
+    @classmethod
+    def active_cards(cls, unit):
+        """
+        Cards still counting against the unit: live ones, and requests still
+        waiting for Security — otherwise an owner could queue up requests
+        past the allowance and have them all approved.
+        """
+        return cls.objects.filter(
+            unit=unit,
+            pass_type__in=cls.CARD_PASS_TYPES,
+            status__in=(cls.Status.ACTIVE, cls.Status.PENDING),
+            valid_to__gt=timezone.now(),
+        )
 
     def save(self, *args, **kwargs):
         if not self.pass_code:
@@ -206,3 +260,80 @@ class VisitorPass(models.Model):
     def __str__(self):
         return f"{self.pass_type} - {self.visitor_name} ({self.pass_code})"
 
+
+
+class PassScan(models.Model):
+    """
+    One scan of a pass QR by gate (Security) or beach/pool (Recreation) staff
+    — an append-only audit log. Every scan is recorded, denials and unknown
+    codes included, so management can see who tried to get in and why they
+    were refused.
+    """
+
+    class Point(models.TextChoices):
+        GATE = "GATE", "Security Gate"
+        BEACH_POOL = "BEACH_POOL", "Beach / Pool"
+
+    class Result(models.TextChoices):
+        GRANTED = "GRANTED", "Granted"
+        DENIED = "DENIED", "Denied"
+
+    class DenyReason(models.TextChoices):
+        NOT_FOUND = "NOT_FOUND", "Unknown pass"
+        CANCELLED = "CANCELLED", "Pass cancelled"
+        EXPIRED = "EXPIRED", "Pass expired"
+        NOT_YET_VALID = "NOT_YET_VALID", "Pass not valid yet"
+        WRONG_PASS_TYPE = "WRONG_PASS_TYPE", "Not a beach/pool card"
+        PENDING_APPROVAL = "PENDING_APPROVAL", "Not approved by Security yet"
+        REJECTED = "REJECTED", "Request rejected"
+
+    resort = models.ForeignKey("core.Resort", on_delete=models.CASCADE, related_name="pass_scans")
+    # Null when the scanned code matched no pass in this resort; the raw code
+    # is kept either way so such attempts can still be reviewed.
+    visitor_pass = models.ForeignKey(
+        VisitorPass, null=True, blank=True, on_delete=models.SET_NULL, related_name="scans"
+    )
+    pass_code = models.CharField(max_length=64)
+    scanned_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="pass_scans"
+    )
+    point = models.CharField(max_length=12, choices=Point.choices)
+    result = models.CharField(max_length=10, choices=Result.choices)
+    deny_reason = models.CharField(max_length=20, choices=DenyReason.choices, blank=True, default="")
+    # Recreation only — towels handed out with this entry.
+    towels_issued = models.PositiveSmallIntegerField(default=0)
+    # Which phone / handheld / fixed scanner sent this, as the staff app
+    # labels it ("Main gate 1") — lets management tell devices apart.
+    device_label = models.CharField(max_length=60, blank=True, default="")
+    scanned_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-scanned_at"]
+        indexes = [
+            models.Index(fields=["resort", "point", "scanned_at"]),
+            models.Index(fields=["visitor_pass", "scanned_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.point} {self.result} {self.pass_code}"
+
+    @classmethod
+    def deny_reason_for(cls, visitor_pass, point, now=None):
+        """Why this pass must be refused at this point, or "" if it may enter."""
+        now = now or timezone.now()
+        if visitor_pass is None:
+            return cls.DenyReason.NOT_FOUND
+        if visitor_pass.status == VisitorPass.Status.PENDING:
+            return cls.DenyReason.PENDING_APPROVAL
+        if visitor_pass.status == VisitorPass.Status.REJECTED:
+            return cls.DenyReason.REJECTED
+        if visitor_pass.status == VisitorPass.Status.CANCELLED:
+            return cls.DenyReason.CANCELLED
+        if visitor_pass.status == VisitorPass.Status.EXPIRED or visitor_pass.valid_to < now:
+            return cls.DenyReason.EXPIRED
+        if visitor_pass.valid_from > now:
+            return cls.DenyReason.NOT_YET_VALID
+        # The gate admits every pass type; the beach/pool takes resident cards only.
+        if point == cls.Point.BEACH_POOL and visitor_pass.pass_type not in VisitorPass.CARD_PASS_TYPES:
+            return cls.DenyReason.WRONG_PASS_TYPE
+        return ""

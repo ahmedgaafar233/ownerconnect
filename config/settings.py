@@ -10,6 +10,7 @@ Security hardening applied:
   - DEBUG-gated SECURE_SSL_REDIRECT to allow local development
 """
 
+import sys
 from datetime import timedelta
 from pathlib import Path
 
@@ -97,6 +98,7 @@ INSTALLED_APPS = [
     "billing",
     "imports",
     "support",
+    "announcements",
     "messenger",
     "collections_app.apps.CollectionsAppConfig",
     "channels",
@@ -142,6 +144,24 @@ DATABASES = {
     "default": env.db("DATABASE_URL")
 }
 
+# ─── Celery (background jobs: bulk push notifications) ────────────────────────
+# Publishing a month's charges notifies thousands of residents at once; that
+# work runs in a worker, never inside the admin request.
+CELERY_BROKER_URL = env("REDIS_URL", default="redis://127.0.0.1:6379/0")
+# Run tasks inline instead of queueing them: always under `manage.py test`,
+# and opt-in for a local dev box with no Redis (CELERY_TASK_ALWAYS_EAGER=1).
+CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=False) or "test" in sys.argv
+CELERY_TASK_EAGER_PROPAGATES = False
+CELERY_TASK_IGNORE_RESULT = True
+# One long job per worker slot at a time, not a prefetched backlog behind it.
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+# Password hashing is deliberately slow; under `manage.py test` it only makes
+# creating users take seconds each. Never applies outside the test runner.
+if "test" in sys.argv:
+    PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+
 # ─── CORS ────────────────────────────────────────────────────────────────────
 
 CORS_ALLOWED_ORIGINS: list[str] = env("CORS_ALLOWED_ORIGINS")
@@ -155,7 +175,7 @@ CORS_ALLOW_CREDENTIALS: bool = env("CORS_ALLOW_CREDENTIALS")
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "core.authentication.TenantJWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
@@ -177,6 +197,9 @@ REST_FRAMEWORK = {
         "auth": "5/minute",
         # Payment session initiation
         "payment": "10/minute",
+        # Gate/beach staff scanning pass QRs — busy at peak, but still capped
+        # so a stolen scanner token can't be used to guess pass codes fast.
+        "scan": "120/minute",
     },
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,

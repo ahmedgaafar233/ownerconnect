@@ -72,6 +72,9 @@ urlpatterns = [
     # Support & Gate/Beach Pass APIs
     path("", include("support.urls")),
 
+    # Resort feed (staff-authored announcements, listings, events)
+    path("", include("announcements.urls")),
+
     # Notifications API
     path("api/notifications/", NotificationListView.as_view(), name="notification_list"),
     path("api/notifications/<int:pk>/read/", NotificationMarkReadView.as_view(), name="notification_mark_read"),

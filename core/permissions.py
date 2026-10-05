@@ -1,6 +1,35 @@
 from django.contrib import admin
 from django.core.exceptions import PermissionDenied
+from rest_framework.permissions import SAFE_METHODS, BasePermission
 from users.models import User
+
+
+class ResidentsReadOnly(BasePermission):
+    """Owners and Tenants may look at a record but never change or delete it."""
+
+    def has_permission(self, request, view):
+        if request.method in SAFE_METHODS:
+            return True
+        return request.user.role not in (User.Role.OWNER, User.Role.TENANT)
+
+
+class IsSecurityStaff(BasePermission):
+    """Security only — the staff who confirm pass requests."""
+
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(user and user.is_authenticated and user.role == User.Role.SECURITY)
+
+
+class IsScannerStaff(BasePermission):
+    """Gate (Security) and beach/pool (Recreation) scanner accounts only."""
+
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(
+            user and user.is_authenticated
+            and user.role in (User.Role.SECURITY, User.Role.RECREATION)
+        )
 
 
 class RoleBasedAdminMixin:

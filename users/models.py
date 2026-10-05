@@ -33,6 +33,14 @@ class User(AbstractBaseUser, PermissionsMixin):
         SUPERVISOR = "SUPERVISOR", "Supervisor"
         DATA_ENTRY = "DATA_ENTRY", "Data Entry"
         RECEPTION = "RECEPTION", "Reception"
+        # Service desks: requests land in the system and a desk dispatches
+        # them — a technician never receives one straight from an owner.
+        MAINTENANCE = "MAINTENANCE", "Maintenance Desk"
+        HOUSEKEEPING = "HOUSEKEEPING", "Housekeeping Desk"
+        # Gate/beach scanner staff — they sign in through the separate staff
+        # scanner app (JWT), never the admin, so they are not is_staff.
+        SECURITY = "SECURITY", "Security"
+        RECREATION = "RECREATION", "Recreation"
         OWNER = "OWNER", "Owner"
         TENANT = "TENANT", "Tenant"
 
@@ -60,11 +68,13 @@ class User(AbstractBaseUser, PermissionsMixin):
             self.Role.FINANCIAL_MANAGER,
             self.Role.GENERAL_MANAGER,
             self.Role.RECEPTION,
+            self.Role.MAINTENANCE,
+            self.Role.HOUSEKEEPING,
         ]:
             self.is_staff = True
         elif self.role == self.Role.OWNER:
             self.is_staff = False
-        elif self.role == self.Role.TENANT:
+        elif self.role in (self.Role.TENANT, self.Role.SECURITY, self.Role.RECREATION):
             self.is_staff = False
 
         super().save(*args, **kwargs)
@@ -76,6 +86,10 @@ class User(AbstractBaseUser, PermissionsMixin):
                 self.Role.OWNER,
                 self.Role.TENANT,
                 self.Role.RECEPTION,
+                self.Role.MAINTENANCE,
+                self.Role.HOUSEKEEPING,
+                self.Role.SECURITY,
+                self.Role.RECREATION,
                 self.Role.DATA_ENTRY,
                 self.Role.SUPERVISOR,
                 self.Role.FINANCIAL_MANAGER,

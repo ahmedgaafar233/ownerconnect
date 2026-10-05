@@ -5,9 +5,18 @@ from .services import UserService
 
 
 class UnitSerializer(serializers.ModelSerializer):
+    # card_allowance is null for a unit with no type assigned (unrestricted);
+    # cards_used lets the pass form show "2 of 3 used" before the owner submits.
+    card_allowance = serializers.IntegerField(read_only=True, allow_null=True)
+    cards_used = serializers.SerializerMethodField()
+
     class Meta:
         model = Unit
-        fields = ("id", "unit_key", "building_no", "unit_no", "is_active")
+        fields = ("id", "unit_key", "building_no", "unit_no", "is_active", "card_allowance", "cards_used")
+
+    def get_cards_used(self, obj: Unit) -> int:
+        from support.models import VisitorPass
+        return VisitorPass.active_cards(obj).count()
 
 
 class MeSerializer(serializers.ModelSerializer):
@@ -33,7 +42,7 @@ class MeSerializer(serializers.ModelSerializer):
         if obj.role not in (User.Role.OWNER, User.Role.TENANT):
             return []
         unit_ids = OwnerUnit.objects.filter(owner=obj).values_list("unit_id", flat=True)
-        qs = Unit.objects.filter(id__in=unit_ids, is_active=True).order_by("unit_key")
+        qs = Unit.objects.filter(id__in=unit_ids, is_active=True).select_related("unit_type").order_by("unit_key")
         return UnitSerializer(qs, many=True).data
 
 

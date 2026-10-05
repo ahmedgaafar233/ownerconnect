@@ -1,4 +1,4 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.core.exceptions import PermissionDenied
 from django.db.models import Sum, Value, DecimalField
 from django.db.models.functions import Coalesce
@@ -10,7 +10,12 @@ from unfold.admin import ModelAdmin
 from core.models import Notification, Resort
 from core.notifications import notify_user
 from core.permissions import RoleBasedAdminMixin, SupervisorAdminMixin
+from .tasks import notify_published_charges_task
 from .models import Charge, ClearanceStatement, PaymentDeferral, PaymentPlan, PaymentPlanInstallment
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @admin.action(description="Publish selected charges")
@@ -19,14 +24,33 @@ def publish_charges(modeladmin, request, queryset):
     if not request.user.is_superuser and getattr(request.user, "role", "") not in [
         "FINANCIAL_MANAGER", "GENERAL_MANAGER"
     ]:
-        from django.contrib import messages
         messages.error(request, "You do not have permission to publish charges.")
         return
+    # Captured before the update: only charges that weren't already live are
+    # news to an owner, so re-running the action on published rows stays quiet.
+    newly_published_ids = list(
+        queryset.exclude(status=Charge.Status.PUBLISHED).values_list("id", flat=True)
+    )
     queryset.update(
         status=Charge.Status.PUBLISHED,
         approved_by=request.user,
         approved_at=timezone.now(),
     )
+    if newly_published_ids:
+        try:
+            # Queued, not run here: a resort's monthly run notifies thousands
+            # of residents, far too much work for the admin request.
+            notify_published_charges_task.delay(newly_published_ids)
+        except Exception as err:
+            # Charges are already live at this point — a queueing failure
+            # must never surface as a failed publish.
+            logger.warning(f"Could not queue charge-published notifications: {err}")
+            messages.warning(
+                request,
+                "The charges were published, but residents could not be notified. "
+                "Check that the background worker and Redis are running.",
+                fail_silently=True,
+            )
 
 
 @admin.register(Charge)

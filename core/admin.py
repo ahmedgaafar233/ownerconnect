@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.db.models import Sum, Q, F
 from django.utils.translation import gettext_lazy as _
-from .models import Resort, Unit, OwnerUnit, Notification
+from .models import Resort, Unit, UnitType, OwnerUnit, Notification
 from core.permissions import GeneralManagerAdminMixin
 
 
@@ -54,8 +54,8 @@ class UnitAdmin(admin.ModelAdmin):
     All staff can view units.
     Only GM+ can edit.
     """
-    list_display = ("id", "resort", "unit_key", "building_no", "unit_no", "is_active")
-    list_filter = ("resort", "is_active", HasBalanceFilter)
+    list_display = ("id", "resort", "unit_key", "building_no", "unit_no", "unit_type", "is_active")
+    list_filter = ("resort", "unit_type", "is_active", HasBalanceFilter)
     search_fields = ("unit_key", "building_no", "unit_no")
     ordering = ("building_no", "unit_no")
 
@@ -64,6 +64,12 @@ class UnitAdmin(admin.ModelAdmin):
 
     def has_module_permission(self, request):
         return request.user.is_staff
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        # A non-superuser GM may only pick unit types from their own resort.
+        if db_field.name == "unit_type" and not request.user.is_superuser:
+            kwargs["queryset"] = UnitType.objects.filter(resort=request.user.resort)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def has_add_permission(self, request):
         if request.user.is_superuser:
@@ -83,6 +89,47 @@ class UnitAdmin(admin.ModelAdmin):
         # roles may open this admin at all — they never scoped rows by
         # resort, so any staff member could browse/search every resort's
         # units. Non-superusers now only ever see their own resort's units.
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        return qs.filter(resort=request.user.resort)
+
+
+@admin.register(UnitType)
+class UnitTypeAdmin(admin.ModelAdmin):
+    """
+    The per-resort table of unit sizes and their beach/pool card allowance
+    (e.g. Studio = 2, 1 Bedroom + Living = 3). GM+ manage their own resort's
+    rows; the mobile app can never raise an allowance, only staff can.
+    """
+    list_display = ("id", "resort", "name", "card_allowance")
+    list_filter = ("resort",)
+    search_fields = ("name",)
+
+    def _is_manager(self, request):
+        return request.user.is_superuser or getattr(request.user, "role", "") == "GENERAL_MANAGER"
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_staff
+
+    def has_module_permission(self, request):
+        return request.user.is_staff
+
+    def has_add_permission(self, request):
+        return self._is_manager(request)
+
+    def has_change_permission(self, request, obj=None):
+        return self._is_manager(request)
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "resort" and not request.user.is_superuser:
+            kwargs["queryset"] = Resort.objects.filter(pk=request.user.resort_id)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def get_queryset(self, request):
         qs = super().get_queryset(request)
         if request.user.is_superuser:
             return qs

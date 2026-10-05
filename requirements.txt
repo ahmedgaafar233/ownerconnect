@@ -81,6 +81,7 @@ redis==5.0.8
 referencing==0.37.0
 requests==2.34.2
 rpds-py==0.30.0
+segno==1.6.6
 service-identity==24.2.0
 six==1.17.0
 sqlparse==0.5.5
