@@ -7,6 +7,7 @@ from django.db.models.functions import Coalesce
 from decimal import Decimal
 from django.http import HttpResponseForbidden
 from collections_app.models import Payment, PaymentAllocation
+from collections_app.payers import default_payer, payer_snapshot, unit_residents
 from collections_app.receipts import generate_receipt_pdf
 from billing.models import Charge
 
@@ -305,13 +306,18 @@ def record_payment_view(request):
             # recorded in django_errors.log. Removing the shadowing import
             # fixes it.
             with transaction.atomic():
+                # Staff say who handed the money over; anything that isn't one of
+                # this unit's residents (a tampered form) falls back to the owner.
+                residents = unit_residents(selected_unit)
+                chosen = next((u for u in residents if str(u.id) == request.POST.get("payer_id", "")), None)
                 payment = Payment.objects.create(
                     resort=selected_unit.resort,
                     unit=selected_unit,
                     receipt_no=receipt_no,
                     total_amount=total_payment_amount,
                     created_by=request.user,
-                    paid_at=timezone.now()
+                    paid_at=timezone.now(),
+                    **payer_snapshot(chosen or default_payer(selected_unit)),
                 )
                 
                 for alloc_data in allocations_to_create:
@@ -375,5 +381,6 @@ def record_payment_view(request):
         "payment_success": payment_success,
         "last_receipt": last_receipt,
         "paid_amount": paid_amount,
+        "residents": unit_residents(selected_unit) if selected_unit else [],
     }
     return render(request, "admin/collections_app/record_payment.html", context)

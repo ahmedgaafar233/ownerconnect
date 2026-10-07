@@ -137,6 +137,20 @@ class Payment(models.Model):
         on_delete=models.SET_NULL,
         related_name="created_payments",
     )
+    # Who handed the money over — the owner or the tenant of the unit. The name
+    # and role are copied here at payment time (like the receipt itself): a
+    # receipt must keep saying who paid even if that person is renamed or
+    # their account is later removed. Blank on payments recorded before this
+    # existed (the receipt then falls back to the unit's owner, as it used to).
+    payer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="payments_made",
+    )
+    payer_name = models.CharField(max_length=255, blank=True, default="")
+    payer_role = models.CharField(max_length=20, blank=True, default="")
     notes = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -173,3 +187,43 @@ class PaymentAllocation(models.Model):
 
     def __str__(self) -> str:
         return f"{self.payment.receipt_no} -> charge#{self.charge_id} {self.amount}"
+
+class PaymentMethod(models.Model):
+    """
+    A way an owner or tenant prefers to pay: a mobile wallet, an InstaPay
+    address, or Fawry. It is a saved preference plus the little the method
+    needs — a wallet's phone number, an InstaPay address — never a card
+    number: card details are only ever typed into the payment gateway's own
+    secure form and never touch this server (cards are added through the
+    gateway once online payments go live, and only a token would be stored).
+    """
+    class Kind(models.TextChoices):
+        CARD = "CARD", "Bank card"
+        WALLET = "WALLET", "Mobile wallet"
+        INSTAPAY = "INSTAPAY", "InstaPay"
+        FAWRY = "FAWRY", "Fawry"
+
+    class Wallet(models.TextChoices):
+        VODAFONE_CASH = "VODAFONE_CASH", "Vodafone Cash"
+        ORANGE_CASH = "ORANGE_CASH", "Orange Cash"
+        ETISALAT_CASH = "ETISALAT_CASH", "Etisalat Cash"
+        WE_PAY = "WE_PAY", "WE Pay"
+        OTHER = "OTHER", "Other wallet"
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="payment_methods")
+    kind = models.CharField(max_length=10, choices=Kind.choices)
+    # What the app shows for it, e.g. "Vodafone Cash · +20 100 000 0000".
+    label = models.CharField(max_length=120)
+
+    wallet_provider = models.CharField(max_length=15, choices=Wallet.choices, blank=True, default="")
+    wallet_phone = models.CharField(max_length=20, blank=True, default="")
+    instapay_address = models.CharField(max_length=80, blank=True, default="")
+
+    is_default = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-is_default", "-created_at"]
+
+    def __str__(self):
+        return f"{self.user.phone}: {self.label}"

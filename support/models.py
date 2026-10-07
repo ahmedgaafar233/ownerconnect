@@ -234,6 +234,12 @@ class VisitorPass(models.Model):
     # guest and maintenance-worker passes are the owner's to issue freely.
     CARD_PASS_TYPES = (PassType.BEACH_ACCESS,)
 
+    # What the beach/pool gate lets through: resident cards, and the access
+    # pass a tenant's adults carry for the length of their rental (the same QR
+    # that opens the village gate). The tenant pass is its own type so it does
+    # not draw down the unit's card allowance.
+    POOL_PASS_TYPES = (PassType.BEACH_ACCESS, PassType.TENANT)
+
     class Meta:
         ordering = ["-created_at"]
 
@@ -333,7 +339,8 @@ class PassScan(models.Model):
             return cls.DenyReason.EXPIRED
         if visitor_pass.valid_from > now:
             return cls.DenyReason.NOT_YET_VALID
-        # The gate admits every pass type; the beach/pool takes resident cards only.
-        if point == cls.Point.BEACH_POOL and visitor_pass.pass_type not in VisitorPass.CARD_PASS_TYPES:
+        # The gate admits every pass type; the beach/pool takes resident cards
+        # and tenant access passes only.
+        if point == cls.Point.BEACH_POOL and visitor_pass.pass_type not in VisitorPass.POOL_PASS_TYPES:
             return cls.DenyReason.WRONG_PASS_TYPE
         return ""

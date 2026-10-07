@@ -8,6 +8,30 @@ from billing.receipts import CHARGE_TYPE_LABELS_AR
 logger = logging.getLogger("collections_app.receipts")
 
 
+_ROLE_LABELS_EN = {"OWNER": "Owner", "TENANT": "Tenant"}
+_ROLE_LABELS_AR = {"OWNER": "مالك", "TENANT": "مستأجر"}
+
+
+def _payer_for(payment):
+    """
+    The name and role printed on the receipt. A payment records who paid; one
+    from before that was recorded falls back to the unit's owner, as every
+    receipt used to say.
+    """
+    if payment.payer_name:
+        return payment.payer_name, payment.payer_role
+
+    from users.models import User
+
+    owner_unit = (
+        payment.unit.owner_units.filter(owner__role=User.Role.OWNER).select_related("owner").first()
+    )
+    if owner_unit is None:
+        return "", ""
+    owner = owner_unit.owner
+    return owner.fullname or owner.phone, User.Role.OWNER
+
+
 def generate_receipt_pdf(payment):
     """
     Renders and stores the payment's PDF receipt exactly once, at payment
@@ -20,19 +44,7 @@ def generate_receipt_pdf(payment):
     """
     try:
         import weasyprint
-        from users.models import User
-
-        owner_unit = (
-            payment.unit.owner_units.filter(owner__role=User.Role.OWNER)
-            .select_related("owner")
-            .first()
-        )
-        if owner_unit and owner_unit.owner.fullname:
-            owner_name = owner_unit.owner.fullname
-        elif owner_unit:
-            owner_name = owner_unit.owner.phone
-        else:
-            owner_name = ""
+        payer_name, payer_role = _payer_for(payment)
 
         is_online = payment.receipt_no.startswith("ONLINE-")
 
@@ -42,7 +54,9 @@ def generate_receipt_pdf(payment):
                 "payment": payment,
                 "unit": payment.unit,
                 "resort": payment.resort,
-                "owner_name": owner_name,
+                "payer_name": payer_name,
+                "payer_role_en": _ROLE_LABELS_EN.get(payer_role, ""),
+                "payer_role_ar": _ROLE_LABELS_AR.get(payer_role, ""),
                 "allocations": payment.allocations.select_related("charge").all(),
                 "channel_label_ar": "دفع أونلاين" if is_online else "دفع نقدي / تحويل",
                 "channel_label_en": "Online Payment" if is_online else "Cash / Bank Transfer",

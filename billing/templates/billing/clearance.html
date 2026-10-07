@@ -22,8 +22,13 @@
             <p>{{ unit.unit_key }}</p>
         </div>
         <div class="info-box">
+            {% if is_tenant %}
+            <h3>Tenant Name / اسم المستأجر</h3>
+            <p>{{ requester_name }}</p>
+            {% else %}
             <h3>Owner Name / اسم المالك</h3>
             <p>{{ owner_name|default:"-" }}</p>
+            {% endif %}
         </div>
         <div class="info-box">
             <h3>Requested By / مقدم الطلب</h3>
@@ -36,7 +41,11 @@
     </div>
 
     {% if statement.is_clear %}
+    {% if is_tenant %}
+    <div class="status-box status-clear">No Outstanding Dues on the Tenant for the Lease Period — Account Settled in Full<br>لا توجد مستحقات مالية على المستأجر عن فترة الإيجار حتى تاريخه</div>
+    {% else %}
     <div class="status-box status-clear">No Outstanding Dues — Account Settled in Full<br>لا توجد مستحقات مالية على الوحدة حتى تاريخه</div>
+    {% endif %}
     {% else %}
     <div class="status-box status-outstanding">Outstanding Balance / الرصيد المستحق: {{ statement.total_remaining|floatformat:2 }} EGP</div>
     {% endif %}
@@ -84,8 +93,8 @@
     </table>
 
     <div class="footer">
-        <p>This statement reflects the unit's balance as of {{ statement.as_of_date|date:"Y-m-d" }} only, and the balance may change afterward due to new charges or payments. Issued automatically by the OwnerConnect management system.</p>
-        <p>هذه المخالصة تعكس رصيد الوحدة كما هو بتاريخ {{ statement.as_of_date|date:"Y-m-d" }} فقط، وقد يتغير الرصيد بعد هذا التاريخ نتيجة مستحقات أو مدفوعات جديدة. صادرة آليًا من نظام إدارة OwnerConnect.</p>
+        <p>This statement reflects the {% if is_tenant %}tenant's balance for the lease period{% else %}unit's balance{% endif %} as of {{ statement.as_of_date|date:"Y-m-d" }} only, and the balance may change afterward due to new charges or payments. Issued automatically by the OwnerConnect management system.</p>
+        <p>هذه المخالصة تعكس {% if is_tenant %}رصيد المستأجر عن فترة الإيجار{% else %}رصيد الوحدة{% endif %} كما هو بتاريخ {{ statement.as_of_date|date:"Y-m-d" }} فقط، وقد يتغير الرصيد بعد هذا التاريخ نتيجة مستحقات أو مدفوعات جديدة. صادرة آليًا من نظام إدارة OwnerConnect.</p>
     </div>
 </body>
 </html>

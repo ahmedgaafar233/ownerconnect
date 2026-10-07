@@ -22,8 +22,8 @@
             <p>{{ unit.unit_key }}</p>
         </div>
         <div class="info-box">
-            <h3>Owner Name / اسم المالك</h3>
-            <p>{{ owner_name|default:"-" }}</p>
+            <h3>Received From / استلمنا من</h3>
+            <p>{{ payer_name|default:"-" }}{% if payer_role_en %} ({{ payer_role_en }} / {{ payer_role_ar }}){% endif %}</p>
         </div>
         <div class="info-box">
             <h3>Payment Date / تاريخ الدفع</h3>

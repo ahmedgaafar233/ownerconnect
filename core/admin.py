@@ -1,7 +1,10 @@
 from django.contrib import admin
 from django.db.models import Sum, Q, F
 from django.utils.translation import gettext_lazy as _
-from .models import Resort, Unit, UnitType, OwnerUnit, Notification
+from django.urls import reverse
+from django.utils import timezone
+from django.utils.html import format_html
+from .models import Lease, LeaseAdult, LeaseDocument, MeterReading, Resort, Unit, UnitType, OwnerUnit, Notification
 from core.permissions import GeneralManagerAdminMixin
 
 
@@ -139,7 +142,7 @@ class UnitTypeAdmin(admin.ModelAdmin):
 @admin.register(OwnerUnit)
 class OwnerUnitAdmin(GeneralManagerAdminMixin, admin.ModelAdmin):
     """GM+ can view; only superuser can add/change/delete."""
-    list_display = ("id", "owner", "unit", "lease_start_date", "total_debt", "total_paid", "remaining_balance", "created_at")
+    list_display = ("id", "owner", "unit", "lease_start_date", "lease_end_date", "total_debt", "total_paid", "remaining_balance", "created_at")
     list_filter = ("unit__resort",)
     search_fields = ("owner__phone", "unit__unit_key")
     autocomplete_fields = ("owner", "unit")
@@ -214,3 +217,172 @@ class NotificationAdmin(GeneralManagerAdminMixin, admin.ModelAdmin):
         if request.user.is_superuser:
             return qs
         return qs.filter(resort=request.user.resort)
+
+class _ReadOnlyInline(admin.TabularInline):
+    extra = 0
+    can_delete = False
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+class LeaseAdultInline(_ReadOnlyInline):
+    model = LeaseAdult
+    fields = ("full_name", "relation", "national_id", "id_photo_link", "qr_code")
+    readonly_fields = fields
+
+    @admin.display(description="ID photo")
+    def id_photo_link(self, obj):
+        if not obj.pk or not obj.id_photo:
+            return "—"
+        return format_html('<a href="{}" target="_blank">View</a>', reverse("lease_adult_id_photo", args=[obj.pk]))
+
+    @admin.display(description="QR code")
+    def qr_code(self, obj):
+        return obj.access_pass.pass_code if obj.access_pass_id else "—"
+
+
+class LeaseDocumentInline(_ReadOnlyInline):
+    model = LeaseDocument
+    fields = ("kind", "label", "file_link")
+    readonly_fields = fields
+
+    @admin.display(description="File")
+    def file_link(self, obj):
+        if not obj.pk or not obj.file:
+            return "—"
+        return format_html('<a href="{}" target="_blank">View</a>', reverse("lease_document_file", args=[obj.pk]))
+
+
+class LeaseMeterInline(_ReadOnlyInline):
+    model = MeterReading
+    fields = ("meter", "kind", "reading", "read_on", "recorded_by")
+    readonly_fields = fields
+
+
+@admin.register(Lease)
+class LeaseAdmin(admin.ModelAdmin):
+    """
+    Who is renting each unit. Owners register these themselves from the app —
+    the village doesn't approve them, it just reads them (Reception, Security
+    and the managers need to know who is living where). So this is view-only;
+    nothing here creates or edits a rental.
+    """
+    list_display = ("unit", "tenant_name", "tenant_phone", "term", "start_date", "end_date", "state", "occupants", "landlord")
+    list_filter = ("term",)
+    search_fields = ("unit__unit_key", "tenant_name", "tenant_phone", "landlord__phone")
+    actions = ["end_selected_rentals"]
+    inlines = (LeaseAdultInline, LeaseDocumentInline, LeaseMeterInline)
+    readonly_fields = (
+        "resort", "unit", "landlord", "tenant", "term", "start_date", "end_date", "tenant_name", "tenant_phone",
+        "tenant_national_id", "id_photo_link", "occupants", "cancelled_at", "created_at",
+    )
+    fields = readonly_fields
+    _ROLES = ("RESORT_ADMIN", "GENERAL_MANAGER", "SUPERVISOR", "RECEPTION")
+
+    @admin.display(description="Status")
+    def state(self, obj):
+        return obj.status_on(timezone.localdate())
+
+    @admin.display(description="ID photo")
+    def id_photo_link(self, obj):
+        if not obj.pk or not obj.tenant_id_photo:
+            return "—"
+        return format_html('<a href="{}" target="_blank">View ID photo</a>', reverse("lease_id_photo", args=[obj.pk]))
+
+    @admin.action(description="End the selected rentals (cancel ones that haven't started)")
+    def end_selected_rentals(self, request, queryset):
+        """
+        The safety valve for a rental an owner registered by mistake — or for
+        someone who isn't actually the tenant. Ends it exactly as the owner's
+        own "End rental" does, and tells the tenant.
+        """
+        from .leases import LeaseError, end_lease
+
+        ended, skipped = 0, 0
+        for lease in queryset.select_related("unit", "tenant", "resort"):
+            try:
+                end_lease(lease)
+                ended += 1
+            except LeaseError:
+                skipped += 1  # already over
+        self.message_user(request, f"{ended} rental(s) ended" + (f", {skipped} already over." if skipped else "."))
+
+    def _can_see(self, request):
+        return request.user.is_superuser or getattr(request.user, "role", "") in self._ROLES
+
+    def has_module_permission(self, request):
+        return self._can_see(request)
+
+    def has_view_permission(self, request, obj=None):
+        return self._can_see(request)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request).select_related("unit", "landlord")
+        if request.user.is_superuser:
+            return qs
+        return qs.filter(resort=request.user.resort)
+
+
+@admin.register(MeterReading)
+class MeterReadingAdmin(admin.ModelAdmin):
+    """
+    Meter readings, taken by the village's Maintenance team (they read every
+    meter). At a tenant's entry and exit they mark where one person's
+    consumption ends and the next begins; each reading links itself to the
+    rental its date falls in.
+    """
+    list_display = ("unit", "meter", "kind", "reading", "read_on", "lease", "recorded_by")
+    list_filter = ("meter", "kind")
+    search_fields = ("unit__unit_key", "note")
+    autocomplete_fields = ("unit",)
+    fields = ("unit", "meter", "kind", "reading", "read_on", "note", "lease", "recorded_by")
+    readonly_fields = ("lease", "recorded_by")
+    date_hierarchy = "read_on"
+    _WRITERS = ("MAINTENANCE", "RESORT_ADMIN", "GENERAL_MANAGER", "SUPERVISOR")
+    _READERS = _WRITERS + ("RECEPTION",)
+
+    def _role(self, request):
+        return getattr(request.user, "role", "")
+
+    def has_module_permission(self, request):
+        return request.user.is_superuser or self._role(request) in self._READERS
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_superuser or self._role(request) in self._READERS
+
+    def has_add_permission(self, request):
+        return request.user.is_superuser or self._role(request) in self._WRITERS
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_superuser or self._role(request) in self._WRITERS
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request).select_related("unit", "lease", "recorded_by")
+        return qs if request.user.is_superuser else qs.filter(resort=request.user.resort)
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "unit" and not request.user.is_superuser:
+            kwargs["queryset"] = Unit.objects.filter(resort=request.user.resort)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.recorded_by = request.user
+        obj.resort_id = obj.unit.resort_id
+        super().save_model(request, obj, form, change)

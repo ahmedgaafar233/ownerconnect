@@ -28,11 +28,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from billing.models import Charge, PaymentDeferral
-from core.models import Notification, OwnerUnit
+from core.models import Notification
 from core.notifications import notify_unit_counterparts, notify_user
 from users.models import User
 
 from .models import Payment, PaymentAllocation, PaymentSession
+from .payers import payer_snapshot
 from .receipts import generate_receipt_pdf
 
 logger = logging.getLogger("collections_app")
@@ -118,10 +119,12 @@ class InitiateOnlinePaymentAPIView(APIView):
     def post(self, request):
         user = request.user
 
-        # Only owners can initiate online payments
-        if user.role != User.Role.OWNER:
+        # Owners and Tenants can pay online — a tenant has to be able to settle
+        # their own utility months to get their clearance statement. What each
+        # may pay is exactly what they can see (see _accessible_charges_qs).
+        if user.role not in (User.Role.OWNER, User.Role.TENANT):
             return Response(
-                {"detail": "Only property owners may initiate online payments."},
+                {"detail": "Only property owners and tenants may initiate online payments."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -141,22 +144,17 @@ class InitiateOnlinePaymentAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Resolve unit IDs this owner is permitted to access
-        owner_unit_ids = (
-            OwnerUnit.objects.filter(owner=user, unit__is_active=True)
-            .values_list("unit_id", flat=True)
-        )
-
         # Fetch only charges that:
-        #   - belong to the owner's units (prevents IDOR)
-        #   - are in PUBLISHED status (prevents paying pending/rejected charges)
+        #   - the caller can see — their own units, PUBLISHED, and for a
+        #     Tenant only their lease's utility months; for an Owner never the
+        #     months a long lease moved to its tenant (prevents IDOR and
+        #     paying someone else's charges)
         #   - match the supplied IDs
+        from billing.views import _accessible_charges_qs
+
+        accessible, _unit_ids = _accessible_charges_qs(user)
         charges = (
-            Charge.objects.filter(
-                id__in=charge_ids,
-                unit_id__in=owner_unit_ids,
-                status=Charge.Status.PUBLISHED,
-            )
+            accessible.filter(id__in=charge_ids, unit__is_active=True)
             .select_related("unit", "unit__resort")
             .prefetch_related("allocations")
         )
@@ -475,6 +473,7 @@ class PaymentWebhookAPIView(APIView):
                         receipt_no=unit_receipt_no,
                         total_amount=unit_total,
                         notes=f"Online payment via Paymob. Transaction ID: {transaction_id}",
+                        **payer_snapshot(session.owner),
                     )
                     for charge, amt in unit_allocations:
                         PaymentAllocation.objects.create(payment=payment, charge=charge, amount=amt)

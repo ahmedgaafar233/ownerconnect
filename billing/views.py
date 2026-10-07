@@ -14,6 +14,7 @@ from rest_framework.views import APIView
 from core.models import Notification, OwnerUnit
 from core.notifications import notify_unit_counterparts, notify_user
 from users.models import User
+from .lease_rules import transferred_q
 from .models import Charge, ClearanceStatement, PaymentDeferral, PaymentPlan
 from .receipts import generate_clearance_pdf
 from collections_app.models import Payment
@@ -29,15 +30,23 @@ from .serializers import (
 
 def _lease_floor_q(user, unit_ids):
     """
-    For a Tenant, restricts each unit to charges dated on/after that unit's
-    lease_start_date — units with no lease_start_date set stay unrestricted
+    For a Tenant, restricts each unit to charges inside that unit's lease —
+    on/after lease_start_date and, once the lease has an end, on/before
+    lease_end_date's month. Units with no lease dates set stay unrestricted
     (so existing pilot data isn't silently broken). Returns None when no
-    floor applies at all (Owner, or no lease dates set on any unit).
+    window applies at all (Owner, or no lease dates set on any unit).
+
+    The end cap is what lets a tenant keep paying their own months after the
+    lease is over (and get their clearance) without ever seeing the next
+    occupant's charges.
     """
     if user.role != User.Role.TENANT:
         return None
 
-    lease_rows = list(OwnerUnit.objects.filter(owner=user, unit_id__in=unit_ids).exclude(lease_start_date=None))
+    lease_rows = list(
+        OwnerUnit.objects.filter(owner=user, unit_id__in=unit_ids)
+        .exclude(lease_start_date=None, lease_end_date=None)
+    )
     if not lease_rows:
         return None
 
@@ -46,14 +55,31 @@ def _lease_floor_q(user, unit_ids):
 
     floor_q = Q()
     for r in lease_rows:
-        floor_q |= Q(unit_id=r.unit_id) & (
-            Q(year__gt=r.lease_start_date.year)
-            | Q(year=r.lease_start_date.year, month__gte=r.lease_start_date.month)
-            | Q(year=r.lease_start_date.year, month__isnull=True)
-        )
+        unit_q = Q(unit_id=r.unit_id)
+        if r.lease_start_date:
+            unit_q &= (
+                Q(year__gt=r.lease_start_date.year)
+                | Q(year=r.lease_start_date.year, month__gte=r.lease_start_date.month)
+                | Q(year=r.lease_start_date.year, month__isnull=True)
+            )
+        if r.lease_end_date:
+            unit_q &= (
+                Q(year__lt=r.lease_end_date.year)
+                | Q(year=r.lease_end_date.year, month__lte=r.lease_end_date.month)
+                | Q(year=r.lease_end_date.year, month__isnull=True)
+            )
+        floor_q |= unit_q
     if unrestricted_unit_ids:
         floor_q |= Q(unit_id__in=unrestricted_unit_ids)
     return floor_q
+
+
+def _hide_transferred(qs, user, unit_ids):
+    """An Owner never sees the utility months a LONG lease has moved to its tenant."""
+    if user.role != User.Role.OWNER:
+        return qs
+    hidden = transferred_q(unit_ids)
+    return qs.exclude(hidden) if hidden is not None else qs
 
 
 def _accessible_charges_qs(user):
@@ -71,6 +97,7 @@ def _accessible_charges_qs(user):
     floor_q = _lease_floor_q(user, unit_ids)
     if floor_q is not None:
         qs = qs.filter(floor_q)
+    qs = _hide_transferred(qs, user, unit_ids)
     return qs, unit_ids
 
 
@@ -103,6 +130,7 @@ def _accessible_charge_or_404(user, charge_id):
         floor_q = _lease_floor_q(user, unit_ids)
         if floor_q is not None:
             qs = qs.filter(floor_q)
+    qs = _hide_transferred(qs, user, unit_ids)
     return get_object_or_404(qs, id=charge_id)
 
 

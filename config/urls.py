@@ -7,6 +7,25 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from core.public_views import ResortListView
+from core.lease_api import (
+    LeaseAdultCreateView,
+    LeaseAdultDeleteView,
+    LeaseDocumentCreateView,
+    LeaseDocumentDeleteView,
+    LeaseEndView,
+    LeaseExtendView,
+    LeaseListCreateView,
+    LeaseRenewView,
+    lease_adult_id_view,
+    lease_document_view,
+    lease_id_photo_view,
+)
+from core.lease_staff_api import (
+    StaffLeaseAdultIdView,
+    StaffLeaseDocumentView,
+    StaffLeaseListView,
+    StaffLeaseTenantIdView,
+)
 from users.views import ActivateView, MeView, GenerateActivationCodeView, FirebaseAuthView, FCMTokenRegisterView
 from billing.views import (
     ChargeDeferView,
@@ -20,6 +39,12 @@ from billing.views import (
     PaymentReceiptDownloadView,
 )
 from collections_app.api_views import InitiateOnlinePaymentAPIView, PaymentWebhookAPIView
+from collections_app.method_api import (
+    PaymentMethodDefaultView,
+    PaymentMethodDetailView,
+    PaymentMethodListCreateView,
+    PaymentMethodOptionsView,
+)
 from core.views import unit_statement_view, unit_search_view, unit_detail_view
 from core.notification_views import (
     NotificationListView,
@@ -37,6 +62,9 @@ urlpatterns = [
     path("admin/daily-collections/", daily_collections_view, name="daily_collections"),
     path("admin/record-payment/", record_payment_view, name="record_payment"),
     path("admin/messenger/", include("messenger.urls", namespace="messenger")),
+    path("admin/lease-id/<int:pk>/", lease_id_photo_view, name="lease_id_photo"),
+    path("admin/lease-adult-id/<int:pk>/", lease_adult_id_view, name="lease_adult_id_photo"),
+    path("admin/lease-document/<int:pk>/", lease_document_view, name="lease_document_file"),
 
     path("admin/", admin.site.urls),
 
@@ -68,6 +96,38 @@ urlpatterns = [
     path("api/payments/<int:pk>/receipt/", PaymentReceiptDownloadView.as_view(), name="payment_receipt_download"),
     path("api/payments/initiate/", InitiateOnlinePaymentAPIView.as_view(), name="initiate_payment"),
     path("api/payments/webhook/", PaymentWebhookAPIView.as_view(), name="payment_webhook"),
+    path("api/payment-methods/", PaymentMethodListCreateView.as_view(), name="payment_methods"),
+    path("api/payment-methods/options/", PaymentMethodOptionsView.as_view(), name="payment_method_options"),
+    path("api/payment-methods/<int:pk>/", PaymentMethodDetailView.as_view(), name="payment_method"),
+    path("api/payment-methods/<int:pk>/default/", PaymentMethodDefaultView.as_view(), name="payment_method_default"),
+
+    # Renting a unit out (owner registers the tenant; the village is only told)
+    path("api/owner/leases/", LeaseListCreateView.as_view(), name="owner_leases"),
+    path("api/owner/leases/<int:pk>/end/", LeaseEndView.as_view(), name="owner_lease_end"),
+    path("api/owner/leases/<int:pk>/extend/", LeaseExtendView.as_view(), name="owner_lease_extend"),
+    path("api/owner/leases/<int:pk>/renew/", LeaseRenewView.as_view(), name="owner_lease_renew"),
+    path("api/owner/leases/<int:pk>/adults/", LeaseAdultCreateView.as_view(), name="owner_lease_adults"),
+    path("api/owner/leases/<int:pk>/adults/<int:adult_id>/", LeaseAdultDeleteView.as_view(), name="owner_lease_adult"),
+    path("api/owner/leases/<int:pk>/documents/", LeaseDocumentCreateView.as_view(), name="owner_lease_documents"),
+    path(
+        "api/owner/leases/<int:pk>/documents/<int:document_id>/",
+        LeaseDocumentDeleteView.as_view(),
+        name="owner_lease_document",
+    ),
+
+    # Security's view of the tenancies in the village, and the papers sent with them
+    path("api/staff/leases/", StaffLeaseListView.as_view(), name="staff_leases"),
+    path("api/staff/leases/<int:pk>/tenant-id/", StaffLeaseTenantIdView.as_view(), name="staff_lease_tenant_id"),
+    path(
+        "api/staff/leases/<int:pk>/adults/<int:adult_id>/id/",
+        StaffLeaseAdultIdView.as_view(),
+        name="staff_lease_adult_id",
+    ),
+    path(
+        "api/staff/leases/<int:pk>/documents/<int:document_id>/",
+        StaffLeaseDocumentView.as_view(),
+        name="staff_lease_document",
+    ),
 
     # Support & Gate/Beach Pass APIs
     path("", include("support.urls")),

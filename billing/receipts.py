@@ -47,6 +47,9 @@ def generate_clearance_pdf(statement, charges):
 
         requester = statement.requested_by
         requester_name = requester.fullname or requester.phone
+        # A tenant's clearance is theirs — it's about their own months and is
+        # what they take to get their deposit back — so it names them, not the owner.
+        is_tenant = requester.role == User.Role.TENANT
 
         html = render_to_string(
             "billing/clearance.html",
@@ -56,6 +59,7 @@ def generate_clearance_pdf(statement, charges):
                 "resort": unit.resort,
                 "owner_name": owner_name,
                 "requester_name": requester_name,
+                "is_tenant": is_tenant,
                 "charges": charges,
                 "charge_type_ar": CHARGE_TYPE_LABELS_AR,
             },

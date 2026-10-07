@@ -100,9 +100,14 @@ class TicketCreateSerializer(serializers.ModelSerializer):
     def validate_unit(self, value):
         user = self.context["request"].user
         if user.role in ("OWNER", "TENANT"):
-            owns = value.owner_units.filter(owner=user).exists()
-            if not owns:
+            from core.leases import has_unit_access
+
+            if not value.owner_units.filter(owner=user).exists():
                 raise serializers.ValidationError("You do not own this unit.")
+            if not has_unit_access(user, value):
+                raise serializers.ValidationError(
+                    "Your rental of this unit has ended, so you can no longer make requests for it."
+                )
         return value
 
 
@@ -144,9 +149,14 @@ class VisitorPassSerializer(serializers.ModelSerializer):
     def validate_unit(self, value):
         user = self.context["request"].user
         if user.role in ("OWNER", "TENANT"):
-            owns = value.owner_units.filter(owner=user).exists()
-            if not owns:
+            from core.leases import has_unit_access
+
+            if not value.owner_units.filter(owner=user).exists():
                 raise serializers.ValidationError("You do not own this unit.")
+            if not has_unit_access(user, value):
+                raise serializers.ValidationError(
+                    "Your rental of this unit has ended, so you can no longer make requests for it."
+                )
         return value
 
     def __init__(self, *args, **kwargs):
@@ -189,6 +199,7 @@ class PassRequestSerializer(serializers.ModelSerializer):
     requested_by_phone = serializers.CharField(source="owner.phone", read_only=True)
     unit_card_allowance = serializers.SerializerMethodField()
     unit_cards_in_use = serializers.SerializerMethodField()
+    unit_lease = serializers.SerializerMethodField()
 
     class Meta:
         model = VisitorPass
@@ -196,7 +207,7 @@ class PassRequestSerializer(serializers.ModelSerializer):
             "id", "pass_type", "visitor_name", "national_id_or_passport", "car_plate",
             "valid_from", "valid_to", "status", "rejection_reason", "decided_at", "created_at",
             "unit_key", "requested_by_name", "requested_by_role", "requested_by_phone",
-            "unit_card_allowance", "unit_cards_in_use",
+            "unit_card_allowance", "unit_cards_in_use", "unit_lease",
         )
         read_only_fields = fields
 
@@ -208,6 +219,26 @@ class PassRequestSerializer(serializers.ModelSerializer):
 
     def get_unit_cards_in_use(self, obj):
         return VisitorPass.active_cards(obj.unit).count()
+
+    def get_unit_lease(self, obj):
+        """
+        The tenant the owner registered for this unit, so Security can approve
+        card requests knowing the unit is rented (the owner told the village
+        about the tenant when registering — there's no separate approval step).
+        """
+        from core.leases import current_lease
+
+        lease = current_lease(obj.unit)
+        if lease is None:
+            return None
+        return {
+            "tenant_name": lease.tenant_name,
+            "tenant_phone": lease.tenant_phone,
+            "term": lease.term,
+            "start_date": lease.start_date,
+            "end_date": lease.end_date,
+            "occupants": lease.occupants,
+        }
 
 
 class PassRejectSerializer(serializers.Serializer):

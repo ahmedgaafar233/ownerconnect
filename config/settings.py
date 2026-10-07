@@ -200,6 +200,8 @@ REST_FRAMEWORK = {
         # Gate/beach staff scanning pass QRs — busy at peak, but still capped
         # so a stolen scanner token can't be used to guess pass codes fast.
         "scan": "120/minute",
+        # Registering a rental uploads an ID photo and creates an account.
+        "lease": "20/minute",
     },
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,

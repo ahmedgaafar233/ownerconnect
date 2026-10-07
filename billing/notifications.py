@@ -6,6 +6,7 @@ from core.models import Notification, OwnerUnit
 from core.notifications import notify_many
 from users.models import User
 
+from .lease_rules import transferred_q_by_unit
 from .models import Charge
 
 # Keeps IN (...) lists inside SQLite's bound-variable limit; Postgres doesn't care.
@@ -52,13 +53,27 @@ def notify_published_charges(charge_ids):
     for chunk in _chunks(unit_totals):
         links.extend(OwnerUnit.objects.filter(unit_id__in=chunk, owner__is_active=True).select_related("owner"))
 
+    # Units a long lease currently holds: their new utility charges belong to
+    # the tenant, so the owner's summary must leave those out (and say nothing
+    # at all if that was everything).
+    owner_totals = {}
+    for chunk in _chunks(unit_totals):
+        for unit_id, hidden in transferred_q_by_unit(chunk).items():
+            rows = (
+                Charge.objects.filter(id__in=ids_by_unit[unit_id], status=Charge.Status.PUBLISHED)
+                .exclude(hidden)
+                .aggregate(count=Count("id"), total=Sum("amount"))
+            )
+            owner_totals[unit_id] = (unit_totals[unit_id][0], rows["count"] or 0, rows["total"] or 0)
+
     entries, tenant_units = [], defaultdict(list)
     for link in links:
         if link.owner.role == User.Role.TENANT:
             tenant_units[link.owner_id].append(link)
             continue
-        unit_key, count, total = unit_totals[link.unit_id]
-        entries.append(_entry(link.owner, link.unit_id, unit_key, count, total))
+        unit_key, count, total = owner_totals.get(link.unit_id, unit_totals[link.unit_id])
+        if count:
+            entries.append(_entry(link.owner, link.unit_id, unit_key, count, total))
 
     for links_of_tenant in tenant_units.values():
         tenant = links_of_tenant[0].owner
