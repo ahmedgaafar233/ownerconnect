@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../profile/data/models/profile_unit.dart';
+
 abstract class AuthState extends Equatable {
   const AuthState();
 
@@ -42,6 +44,10 @@ class AuthenticatedState extends AuthState {
   final String fullname;
   final String phone;
 
+  /// The units this person has (as owner or tenant) — what identifies them in
+  /// the app together with the village, shown under their name in the drawer.
+  final List<ProfileUnit> units;
+
   const AuthenticatedState({
     required this.userId,
     required this.role,
@@ -50,13 +56,14 @@ class AuthenticatedState extends AuthState {
     this.resortLogoUrl,
     this.fullname = '',
     this.phone = '',
+    this.units = const [],
   });
 
   /// Who to call this person: their name, else their phone number.
   String get displayName => fullname.trim().isNotEmpty ? fullname.trim() : phone;
 
   @override
-  List<Object?> get props => [userId, role, resortId, resortName, resortLogoUrl, fullname, phone];
+  List<Object?> get props => [userId, role, resortId, resortName, resortLogoUrl, fullname, phone, units];
 }
 
 /// Signed in but `resort` is still null on the backend — the account exists

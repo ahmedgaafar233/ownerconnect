@@ -8,6 +8,8 @@ import '../../features/auth/data/resort_selection.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/financial/data/repositories/financial_repository.dart';
 import '../../features/notifications/data/repositories/notification_repository.dart';
+import '../../features/profile/data/repositories/lease_repository.dart';
+import '../../features/profile/data/repositories/payment_method_repository.dart';
 import '../../features/support/data/repositories/support_repository.dart';
 import '../localization/locale_bloc.dart';
 import '../localization/locale_event.dart';
@@ -22,6 +24,8 @@ class AppDependencies {
   final AuthBloc authBloc;
   final FinancialRepository financialRepository;
   final SupportRepository supportRepository;
+  final LeaseRepository leaseRepository;
+  final PaymentMethodRepository paymentMethodRepository;
   final NotificationRepository notificationRepository;
   final FcmService fcmService;
   final LocaleBloc localeBloc;
@@ -32,6 +36,8 @@ class AppDependencies {
     required this.authBloc,
     required this.financialRepository,
     required this.supportRepository,
+    required this.leaseRepository,
+    required this.paymentMethodRepository,
     required this.notificationRepository,
     required this.fcmService,
     required this.localeBloc,
@@ -84,6 +90,8 @@ class AppDependencies {
       localeBloc: localeBloc,
       financialRepository: FinancialRepository(dio: dioClient.dio),
       supportRepository: SupportRepository(dio: dioClient.dio),
+      leaseRepository: LeaseRepository(dio: dioClient.dio),
+      paymentMethodRepository: PaymentMethodRepository(dio: dioClient.dio),
       notificationRepository: NotificationRepository(dio: dioClient.dio),
       fcmService: FcmService(dioClient.dio),
       resortRepository: ResortRepository(dio: dioClient.dio),

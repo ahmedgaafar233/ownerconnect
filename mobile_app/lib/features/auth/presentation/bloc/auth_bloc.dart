@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/utils/media_url.dart';
+import '../../../profile/data/models/profile_unit.dart';
 import '../../data/repositories/auth_repository.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
@@ -21,6 +22,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<EmailSignInRequested>(_onEmailSignInRequested);
     on<EmailRegisterRequested>(_onEmailRegisterRequested);
     on<AccountLinkSubmitted>(_onAccountLinkSubmitted);
+    on<ProfileRefreshRequested>(_onProfileRefreshRequested);
   }
 
   Future<void> _onAuthCheckRequested(
@@ -197,24 +199,40 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       final profile = await repository.fetchAndPersistProfile();
       final resortId = profile['resort'];
-      final resortName = profile['resort_name'] as String?;
-      final resortLogoUrl = resolveMediaUrl(profile['resort_logo_url'] as String?);
 
       if (resortId == null) {
         emit(AwaitingResortAssignmentState(userId: profile['id'] as int));
       } else {
-        emit(AuthenticatedState(
-          userId: profile['id'] as int,
-          role: profile['role'] as String,
-          resortId: resortId as int,
-          resortName: resortName ?? '',
-          resortLogoUrl: resortLogoUrl,
-          fullname: profile['fullname'] as String? ?? '',
-          phone: profile['phone'] as String? ?? '',
-        ));
+        emit(_authenticatedFrom(profile));
       }
     } catch (e) {
       emit(UnauthenticatedState());
     }
+  }
+
+  AuthenticatedState _authenticatedFrom(Map<String, dynamic> profile) {
+    return AuthenticatedState(
+      userId: profile['id'] as int,
+      role: profile['role'] as String,
+      resortId: profile['resort'] as int,
+      resortName: profile['resort_name'] as String? ?? '',
+      resortLogoUrl: resolveMediaUrl(profile['resort_logo_url'] as String?),
+      fullname: profile['fullname'] as String? ?? '',
+      phone: profile['phone'] as String? ?? '',
+      units: ProfileUnit.listFrom(profile['units']),
+    );
+  }
+
+  /// A failed refresh keeps the state the person is already looking at — a
+  /// flaky connection must never sign them out of a screen they're using.
+  Future<void> _onProfileRefreshRequested(
+    ProfileRefreshRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    if (state is! AuthenticatedState) return;
+    try {
+      final profile = await repository.fetchAndPersistProfile();
+      if (profile['resort'] != null) emit(_authenticatedFrom(profile));
+    } catch (_) {}
   }
 }

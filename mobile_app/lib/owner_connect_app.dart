@@ -96,6 +96,8 @@ class _OwnerConnectAppState extends State<OwnerConnectApp> {
     return MultiProvider(
       providers: [
         RepositoryProvider.value(value: widget.dependencies.resortRepository),
+        RepositoryProvider.value(value: widget.dependencies.leaseRepository),
+        RepositoryProvider.value(value: widget.dependencies.paymentMethodRepository),
         RepositoryProvider.value(value: _notificationRouter),
         // ResortSelection is a ValueNotifier — needs ChangeNotifierProvider
         // (not a plain RepositoryProvider.value) so context.watch<>() in

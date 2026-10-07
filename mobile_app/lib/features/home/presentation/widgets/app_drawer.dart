@@ -16,11 +16,23 @@ import '../../../profile/presentation/screens/contact_us_screen.dart';
 import '../../../profile/presentation/screens/payment_methods_screen.dart';
 import '../../../profile/presentation/screens/profile_screen.dart';
 import '../../../profile/presentation/screens/settings_screen.dart';
+import '../../../profile/presentation/widgets/unit_labels.dart';
 
-/// Shows the signed-in person — their name and role — under the village's
-/// banner. (The village name itself lives in HomeShell's app bar.)
+/// Shows the signed-in person — their name and role, and what identifies them
+/// in the app: their unit (or how many units they have) and their village.
 class AppDrawer extends StatelessWidget {
   const AppDrawer({Key? key}) : super(key: key);
+
+  /// "Unit B1/101 · Delta Sharm", or "2 units · Delta Sharm" when they have several.
+  static String _placeLine(AppLocalizations loc, AuthenticatedState state) {
+    final units = state.units;
+    final unitPart = units.isEmpty
+        ? ''
+        : units.length == 1
+            ? '${loc.translate('unit')} ${units.first.unitKey}'
+            : unitCountLabel(loc, units.length);
+    return [unitPart, state.resortName].where((part) => part.isNotEmpty).join(' · ');
+  }
 
   void _push(BuildContext context, Widget screen) {
     Navigator.of(context).pop();
@@ -31,8 +43,8 @@ class AppDrawer extends StatelessWidget {
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
     final authState = context.watch<AuthBloc>().state;
-    // The village is already in the app bar; here it's the person.
     final displayName = authState is AuthenticatedState ? authState.displayName : '';
+    final placeLine = authState is AuthenticatedState ? _placeLine(loc, authState) : '';
     final logoUrl = authState is AuthenticatedState ? authState.resortLogoUrl : null;
     final roleLabel = authState is AuthenticatedState
         ? loc.translate(authState.role == 'TENANT' ? 'role_tenant' : 'role_owner')
@@ -50,7 +62,7 @@ class AppDrawer extends StatelessWidget {
           child: SafeArea(
             child: Column(
               children: [
-                _DrawerHeader(displayName: displayName, roleLabel: roleLabel, logoUrl: logoUrl),
+                _DrawerHeader(displayName: displayName, roleLabel: roleLabel, placeLine: placeLine, logoUrl: logoUrl),
                 Expanded(
                   child: ListView(
                     padding: EdgeInsets.zero,
@@ -118,10 +130,16 @@ class AppDrawer extends StatelessWidget {
 }
 
 class _DrawerHeader extends StatelessWidget {
-  const _DrawerHeader({required this.displayName, required this.roleLabel, required this.logoUrl});
+  const _DrawerHeader({
+    required this.displayName,
+    required this.roleLabel,
+    required this.placeLine,
+    required this.logoUrl,
+  });
 
   final String displayName;
   final String roleLabel;
+  final String placeLine;
   final String? logoUrl;
 
   @override
@@ -167,6 +185,16 @@ class _DrawerHeader extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(roleLabel, style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                  ),
+                if (placeLine.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      placeLine,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
                   ),
               ],
             ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'app_localizations_profile.dart';
+
 class AppLocalizations {
   final Locale locale;
 
@@ -1990,8 +1992,12 @@ class AppLocalizations {
   };
 
   String translate(String key) {
-    final table = _localizedValues[locale.languageCode];
-    return table?[key] ?? _localizedValues['en']![key] ?? key;
+    final lang = locale.languageCode;
+    return _localizedValues[lang]?[key] ??
+        kProfileStrings[lang]?[key] ??
+        _localizedValues['en']![key] ??
+        kProfileStrings['en']![key] ??
+        key;
   }
 }
 

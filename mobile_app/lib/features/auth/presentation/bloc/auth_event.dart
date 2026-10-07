@@ -14,6 +14,13 @@ class AuthCheckRequested extends AuthEvent {
   const AuthCheckRequested();
 }
 
+/// Re-reads /api/me/ for an already signed-in person, so what the drawer
+/// shows (name, units) follows changes made elsewhere in the app — saving a
+/// new name, renting a unit out — without waiting for the next app start.
+class ProfileRefreshRequested extends AuthEvent {
+  const ProfileRefreshRequested();
+}
+
 class PhoneSubmitted extends AuthEvent {
   final String phone;
 

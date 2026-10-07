@@ -8,6 +8,7 @@ import '../bloc/visitor_pass_event.dart';
 import '../bloc/visitor_pass_state.dart';
 import '../widgets/pass_qr_dialog.dart';
 import '../../../../core/widgets/app_loading_indicator.dart';
+import '../../../profile/presentation/widgets/stay_card.dart';
 import 'new_visitor_pass_screen.dart';
 
 class VisitorPassesScreen extends StatefulWidget {
@@ -68,7 +69,12 @@ class _VisitorPassesScreenState extends State<VisitorPassesScreen> {
         icon: const Icon(Icons.add),
         label: Text(loc.translate('create_pass')),
       ),
-      body: BlocBuilder<VisitorPassBloc, VisitorPassState>(
+      body: Column(
+        children: [
+          // A long-term tenant's stay dates sit above their QR codes.
+          const StayCard(),
+          Expanded(
+            child: BlocBuilder<VisitorPassBloc, VisitorPassState>(
         builder: (context, state) {
           if (state is VisitorPassLoadingState) {
             return const Center(child: AppLoadingIndicator());
@@ -149,6 +155,9 @@ class _VisitorPassesScreenState extends State<VisitorPassesScreen> {
           }
           return const SizedBox.shrink();
         },
+      ),
+          ),
+        ],
       ),
     );
   }
