@@ -53,3 +53,8 @@ venv*
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Dev server runtime files
+dev_server.log
+.dev_server.pid
+*.pid

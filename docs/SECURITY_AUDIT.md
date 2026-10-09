@@ -1,5 +1,9 @@
 # تدقيق كود ومراجعة أمنية — مشروع OwnerConnect
 
+> **Status note (2026-10-09):** this is a point-in-time review from 2026-09-05, kept as written. The tenant-isolation findings in §1 were fixed and re-verified on 2026-09-18. Follow-up passes then found and fixed two further gaps: public `/media/` access to receipts and attachments (2026-09-20) and tenant spoofing through the JWT API (2026-10-05). §2–3 were not re-checked for this note.
+>
+> **ملاحظة حالة (2026-10-09):** المراجعة دي صورة لحالة الكود يوم 2026-09-05 وسايبينها زي ما هي. ثغرات عزل المنتجعات (البند 1) اتصلحت واتراجعت يوم 2026-09-18، والمراجعات اللي بعدها لقت وصلحت ثغرتين تانيين: الوصول العام لملفات `/media/` (2026-09-20) وانتحال الريزورت عن طريق الـ JWT API (2026-10-05). البندين 2 و3 ماتراجعوش في الملاحظة دي.
+
 تاريخ المراجعة: 2026-09-05
 نطاق المراجعة: كل الـ Django apps (core, users, billing, collections_app, support, messenger, imports)، إعدادات النشر (Docker/Nginx)، ملفات البيئة، اللوجات، وتغطية الاختبارات. المراجعة اعتمدت على قراءة الكود الفعلي + سجلات الأخطاء الحقيقية (`django_errors.log`)، مش تخمين.
 
